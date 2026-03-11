@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabase';
-import { generateSlots, formatTime, formatDate } from '../../lib/slots';
+import { generateSlots, formatTime, formatDate, validatePhone } from '../../lib/slots';
 
 // ─── Colour tokens ────────────────────────────────────────────
 const C = {
@@ -424,23 +424,43 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
-  const cfg = business?.form_config || {};
+  // ── Parse form_config saved by Flutter ──────────────────────
+  // Flutter saves: { phone, email, service, staff, notes } = 'required'|'optional'|'hidden'
+  const rawCfg = business?.form_config || {};
+  const cfg = {
+    showService:      (rawCfg.service  || 'optional') !== 'hidden',
+    serviceRequired:  (rawCfg.service  || 'optional') === 'required',
+    showStaff:        (rawCfg.staff    || 'optional') !== 'hidden',
+    staffRequired:    (rawCfg.staff    || 'optional') === 'required',
+    showNotes:        (rawCfg.notes    || 'optional') !== 'hidden',
+    notesRequired:    (rawCfg.notes    || 'optional') === 'required',
+    showEmail:        (rawCfg.email    || 'hidden')   !== 'hidden',
+    emailRequired:    (rawCfg.email    || 'hidden')   === 'required',
+    phoneRequired:    (rawCfg.phone    || 'required') === 'required',
+  };
 
   const loadSlots = useCallback(async (d) => {
     if (!business) return;
     setLoadingSlots(true); setSelectedSlot(null);
     try {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr  = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const startUtc = new Date(d); startUtc.setUTCHours(0, 0, 0, 0);
+      const endUtc   = new Date(d); endUtc.setUTCHours(23, 59, 59, 999);
+
       const [blockedRes, apptsRes] = await Promise.all([
-        supabase.from('blocked_times').select('start_time,end_time')
+        // All blocked_hours for this business (recurring + date-specific)
+        supabase.from('blocked_hours')
+          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+          .eq('business_id', business.id),
+        // Appointments on this date, excluding denied
+        supabase.from('appointments')
+          .select('slot_start,date_time')
           .eq('business_id', business.id)
-          .gte('start_time', `${dateStr}T00:00:00`).lte('end_time', `${dateStr}T23:59:59`),
-        supabase.from('appointments').select('date_time')
-          .eq('business_id', business.id)
-          .gte('date_time', `${dateStr}T00:00:00`).lte('date_time', `${dateStr}T23:59:59`)
-          .not('status', 'in', '("cancelled")'),
+          .gte('slot_start', startUtc.toISOString())
+          .lte('slot_start', endUtc.toISOString())
+          .neq('booking_status', 'denied'),
       ]);
-      setSlots(generateSlots(schedule, blockedRes.data||[], apptsRes.data||[], d));
+      setSlots(generateSlots(schedule, blockedRes.data || [], apptsRes.data || [], d));
     } catch { setSlots([]); }
     finally { setLoadingSlots(false); }
   }, [business, schedule]);
@@ -451,8 +471,10 @@ export default function BookingPage({ business, schedule, services, staff, error
     setFormError('');
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
     if (!lastName.trim())  { setFormError('Please enter your last name.'); return; }
-    if (!phone.trim())     { setFormError('Please enter your phone number.'); return; }
-    if (cfg.show_service && cfg.service_required && !service) { setFormError('Please select a service.'); return; }
+    // Phone validation — mirrors PhoneValidator.dart
+    const phoneError = validatePhone(phone, business?.whatsapp);
+    if (phoneError) { setFormError(phoneError); return; }
+    if (cfg.showService && cfg.serviceRequired && !service) { setFormError('Please select a service.'); return; }
     if (!selectedSlot)     { setFormError('Please select a time slot.'); return; }
     setSubmitting(true);
     try {
@@ -589,22 +611,22 @@ export default function BookingPage({ business, schedule, services, staff, error
               </div>
             </div>
             <label style={S.label}>Phone Number *</label>
-            <StyledInput icon="phone" placeholder="9876543210" type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} autoComplete="tel"/>
+            <StyledInput icon="phone" placeholder={(() => { const c = business?.whatsapp ? (() => { const CODES=[{d:'+971',n:9},{d:'+966',n:9},{d:'+91',n:10},{d:'+44',n:10},{d:'+1',n:10}]; const m=CODES.find(x=>business.whatsapp.startsWith(x.d)); return m?'0'.repeat(m.n):null; })() : null; return c || '9876543210'; })()} type="tel" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} autoComplete="tel" maxLength={15}/>
           </Section>
 
           <Section icon="calendar" iconBg="#FFFBEB" iconColor={C.amber} title="Appointment">
-            {(cfg.show_service !== false) && (
+            {cfg.showService && (
               <div style={S.fieldWrap}>
-                <label style={S.label}>Service{cfg.service_required?' *':''}</label>
+                <label style={S.label}>Service{cfg.serviceRequired?' *':''}</label>
                 <StyledSelect icon="service" value={service} onChange={e=>setService(e.target.value)}>
                   <option value="">{services.length===0?'No services available':'Select a service'}</option>
                   {services.map(s=><option key={s} value={s}>{s}</option>)}
                 </StyledSelect>
               </div>
             )}
-            {(cfg.show_staff !== false) && staff.length > 0 && (
+            {cfg.showStaff && staff.length > 0 && (
               <div style={S.fieldWrap}>
-                <label style={S.label}>Staff Preference{cfg.staff_required?' *':''}</label>
+                <label style={S.label}>Staff Preference{cfg.staffRequired?' *':''}</label>
                 <StyledSelect icon="staff" value={staffId} onChange={e=>setStaffId(e.target.value)}>
                   <option value="">No preference</option>
                   {staff.map(m=><option key={m.id} value={m.id}>{m.name}{m.role?` · ${m.role}`:''}</option>)}
@@ -616,9 +638,9 @@ export default function BookingPage({ business, schedule, services, staff, error
             <SlotPicker slots={slots} selected={selectedSlot} onChange={setSelectedSlot} loading={loadingSlots}/>
           </Section>
 
-          {(cfg.show_notes !== false) && (
+          {cfg.showNotes && (
             <Section icon="notes" iconBg={C.primaryLight} iconColor="#818CF8" title="Notes">
-              <label style={S.label}>Notes{cfg.notes_required?' *':' (optional)'}</label>
+              <label style={S.label}>Notes{cfg.notesRequired?' *':' (optional)'}</label>
               <div style={S.inputWrap}>
                 <span style={S.iconLeftTextarea}><Icon d={icons.notes} size={15} color={C.inkFaint}/></span>
                 <textarea placeholder="Any special requests or information..." value={notes} onChange={e=>setNotes(e.target.value)} style={S.textarea}/>
