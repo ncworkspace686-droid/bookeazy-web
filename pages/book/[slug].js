@@ -320,6 +320,25 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
+  // ── Client-side services fetch (fixes RLS gap on SSR) ──────────────────────
+  const [liveServices, setLiveServices] = useState(services || []);
+  const [liveStaff,    setLiveStaff]    = useState(staff    || []);
+
+  useEffect(() => {
+    if (!business) return;
+    // Always re-fetch on client to bypass any SSR/RLS issue
+    (async () => {
+      try {
+        const [svcRes, stfRes] = await Promise.all([
+          supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name'),
+          supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name'),
+        ]);
+        if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
+        if (stfRes.data?.length)  setLiveStaff(stfRes.data);
+      } catch { /* keep SSR values */ }
+    })();
+  }, [business?.id]);
+
   const rawCfg = business?.form_config || {};
   const cfg = {
     showService:     (rawCfg.service || 'optional') !== 'hidden',
@@ -332,6 +351,18 @@ export default function BookingPage({ business, schedule, services, staff, error
     emailRequired:   (rawCfg.email   || 'hidden')   === 'required',
     phoneRequired:   (rawCfg.phone   || 'required') === 'required',
   };
+
+  const [liveSchedule, setLiveSchedule] = useState(schedule || null);
+
+  useEffect(() => {
+    if (!business) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
+        if (data) setLiveSchedule(data);
+      } catch { /* keep SSR value */ }
+    })();
+  }, [business?.id]);
 
   const loadSlots = useCallback(async (d) => {
     if (!business) return;
@@ -350,12 +381,12 @@ export default function BookingPage({ business, schedule, services, staff, error
           .lte('slot_start', endUtc.toISOString())
           .neq('booking_status', 'denied'),
       ]);
-      setSlots(generateSlots(schedule, blockedRes.data||[], apptsRes.data||[], d));
+      setSlots(generateSlots(liveSchedule, blockedRes.data||[], apptsRes.data||[], d));
     } catch { setSlots([]); }
     finally { setLoadingSlots(false); }
-  }, [business, schedule]);
+  }, [business, liveSchedule]);
 
-  useEffect(() => { if (business) loadSlots(date); }, [date, business]);
+  useEffect(() => { if (business) loadSlots(date); }, [date, business, liveSchedule]);
 
   const handleSubmit = async () => {
     setFormError('');
@@ -485,7 +516,7 @@ export default function BookingPage({ business, schedule, services, staff, error
             <div style={{ textAlign:'center', marginBottom:20 }}>
               <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.12)', borderRadius:20, padding:'4px 12px 4px 8px', marginBottom:12, border:'1px solid rgba(255,255,255,.2)' }}>
                 <Icon d={icons.star} size={11} color="#FCD34D" sx={{ fill:'#FCD34D', stroke:'none' }}/>
-                <span style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,.9)', letterSpacing:'0.3px' }}>ONLINE BOOKING</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,.9)', letterSpacing:'0.3px' }}>ONLINE BOOKING FORM</span>
               </div>
               <h1 style={{ fontSize:30, fontWeight:800, color:'#fff', margin:'0 0 6px', letterSpacing:'-0.6px', textShadow:'0 2px 12px rgba(0,0,0,.2)', lineHeight:1.15 }}>
                 {business.business_name}
@@ -588,21 +619,21 @@ export default function BookingPage({ business, schedule, services, staff, error
               <div style={{ marginBottom:14 }}>
                 <Label req={cfg.serviceRequired}>Service</Label>
                 <StyledSelect icon="service" value={service} onChange={e=>setService(e.target.value)}>
-                  <option value="">{services.length===0 ? 'No services available' : 'Select a service'}</option>
-                  {services.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="">{liveServices.length===0 ? 'No services available' : 'Select a service'}</option>
+                  {liveServices.map(s => <option key={s} value={s}>{s}</option>)}
                 </StyledSelect>
               </div>
             )}
-            {cfg.showStaff && staff.length > 0 && (
+            {cfg.showStaff && liveStaff.length > 0 && (
               <div style={{ marginBottom:14 }}>
                 <Label req={cfg.staffRequired}>Staff Preference</Label>
                 <StyledSelect icon="staff" value={staffId} onChange={e=>setStaffId(e.target.value)}>
                   <option value="">No preference</option>
-                  {staff.map(m => <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>)}
+                  {liveStaff.map(m => <option key={m.id} value={m.id}>{m.name}{m.role ? ` · ${m.role}` : ''}</option>)}
                 </StyledSelect>
               </div>
             )}
-            <DatePicker value={date} onChange={d=>setDate(d)} maxDays={schedule?.advance_days||30}/>
+            <DatePicker value={date} onChange={d=>setDate(d)} maxDays={liveSchedule?.advance_days||30}/>
             <Label req>Time Slot</Label>
             <SlotPicker slots={slots} selected={selectedSlot} onChange={setSelectedSlot} loading={loadingSlots}/>
           </Card>
@@ -627,27 +658,6 @@ export default function BookingPage({ business, schedule, services, staff, error
               </div>
             </Card>
           )}
-
-          {/* ── Privacy note ── */}
-          <div style={{
-            background: 'rgba(99,102,241,.05)', border:`1px solid rgba(99,102,241,.18)`,
-            borderRadius:14, padding:'13px 16px', marginBottom:16,
-            display:'flex', alignItems:'flex-start', gap:11,
-          }}>
-            <div style={{ width:30, height:30, borderRadius:9, background:C.primary, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
-              <Icon d={icons.shield} size={14} color="#fff"/>
-            </div>
-            <div>
-              <p style={{ fontSize:11, fontWeight:800, color:C.primary, margin:'0 0 3px', textTransform:'uppercase', letterSpacing:'0.5px' }}>Your Privacy</p>
-              <p style={{ fontSize:12, color:C.inkMuted, margin:0, lineHeight:1.6 }}>
-                By submitting, you agree to <strong style={{color:C.inkMid}}>{business.business_name}</strong> storing your details to manage your appointment.
-                {' '}<a href="https://bookeazy-web.vercel.app/privacy" target="_blank" rel="noopener noreferrer"
-                  style={{ color:C.primary, fontWeight:700, textDecoration:'none', borderBottom:`1px solid rgba(99,102,241,.35)` }}>
-                  Privacy Policy ↗
-                </a>
-              </p>
-            </div>
-          </div>
 
           {/* ── Submit ── */}
           <button className="submit-btn" onClick={handleSubmit} disabled={submitting} style={{
