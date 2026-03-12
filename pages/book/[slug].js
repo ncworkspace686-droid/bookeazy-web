@@ -250,28 +250,54 @@ function SlotPicker({ slots, selected, onChange, loading }) {
       <span style={{ fontSize:13, color:C.inkMuted, fontWeight:500 }}>No slots available — try another date</span>
     </div>
   );
+
+  const selectableSlots = slots.filter(s => s.isSelectable);
+  const selectedVal = selected ? selected.toISOString() : '';
+
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
-      {slots.map((slot, i) => {
-        const active = selected && selected.getTime() === slot.start.getTime();
-        const dis = !slot.isSelectable;
-        return (
-          <button key={i} className="slot-btn" disabled={dis}
-            onClick={() => slot.isSelectable && onChange(slot.start)}
-            style={{
-              padding: '10px 4px', borderRadius:11,
-              border: `1.5px solid ${active ? C.primary : dis ? C.border : C.border}`,
-              background: active ? `linear-gradient(135deg,${C.primary},${C.primaryMid})` : dis ? C.bg : C.surface,
-              color: active ? '#fff' : dis ? C.inkFaint : C.inkMid,
-              fontSize:12, fontWeight:700, cursor: dis ? 'not-allowed' : 'pointer',
-              opacity: dis ? 0.45 : 1, fontFamily:FONT,
-              boxShadow: active ? '0 6px 16px rgba(67,56,202,.32)' : dis ? 'none' : '0 1px 3px rgba(0,0,0,.05)',
-            }}>
+    <div style={{ position:'relative', marginBottom:14 }}>
+      <div style={{
+        position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
+        pointerEvents:'none', zIndex:1,
+      }}>
+        <Icon d={icons.clock} size={15} color={selected ? C.primary : C.inkMuted}/>
+      </div>
+      <select
+        value={selectedVal}
+        onChange={e => {
+          const slot = selectableSlots.find(s => s.start.toISOString() === e.target.value);
+          if (slot) onChange(slot.start);
+        }}
+        style={{
+          width:'100%', height:52,
+          paddingLeft:40, paddingRight:36,
+          border:`1.5px solid ${selected ? C.primary : C.border}`,
+          borderRadius:12,
+          background: selected ? C.primaryXL : C.surface,
+          color: selected ? C.primary : C.inkMid,
+          fontSize:14, fontWeight:600, fontFamily:FONT,
+          appearance:'none', WebkitAppearance:'none',
+          cursor:'pointer', outline:'none',
+          boxShadow: selected ? `0 0 0 3px ${C.primary}22` : '0 1px 3px rgba(0,0,0,.06)',
+          transition:'border-color .15s, box-shadow .15s',
+        }}
+      >
+        <option value="" disabled>Select a time slot</option>
+        {selectableSlots.map((slot, i) => (
+          <option key={i} value={slot.start.toISOString()}>
             {formatTime(slot.start)}
-            {dis && <div style={{ fontSize:9, fontStyle:'italic', marginTop:2, opacity:.7 }}>unavailable</div>}
-          </button>
-        );
-      })}
+          </option>
+        ))}
+      </select>
+      {/* Custom chevron */}
+      <div style={{
+        position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
+        pointerEvents:'none',
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={selected ? C.primary : C.inkMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
     </div>
   );
 }
