@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabase';
-import { generateSlots, formatTime, formatDate, validatePhone } from '../../lib/slots';
+import { generateSlots, formatTime, formatDate, validatePhone, getCountryFromWhatsapp } from '../../lib/slots';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -335,6 +335,7 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [firstName,    setFirstName]    = useState('');
   const [lastName,     setLastName]     = useState('');
   const [phone,        setPhone]        = useState('');
+  const phoneMaxLength = getCountryFromWhatsapp(business?.whatsapp)?.digitCount ?? 15;
   const [service,      setService]      = useState('');
   const [staffId,      setStaffId]      = useState('');
   const [notes,        setNotes]        = useState('');
@@ -639,8 +640,18 @@ export default function BookingPage({ business, schedule, services, staff, error
                 return m ? '0'.repeat(m.n) : '9876543210';
               })()}
               type="tel" value={phone}
-              onChange={e => setPhone(e.target.value.replace(/\D/g,''))}
-              autoComplete="tel" maxLength={15}/>
+              onChange={e => setPhone(e.target.value.replace(/\D/g,'').slice(0, phoneMaxLength))}
+              autoComplete="tel" maxLength={phoneMaxLength}/>
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, marginBottom:2 }}>
+              <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkMuted }}>
+                {phone.length === phoneMaxLength
+                  ? '✓ Looks good'
+                  : `${phoneMaxLength - phone.length} more digit${phoneMaxLength - phone.length === 1 ? '' : 's'} needed`}
+              </span>
+              <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkFaint, fontWeight:600 }}>
+                {phone.length}/{phoneMaxLength}
+              </span>
+            </div>
           </Card>
 
           {/* ── Appointment ── */}
