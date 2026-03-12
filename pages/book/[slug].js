@@ -333,6 +333,8 @@ export default function BookingPage({ business, schedule, services, staff, error
           supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name'),
           supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name'),
         ]);
+        console.log('[Bokify] services fetch:', svcRes);
+        console.log('[Bokify] staff fetch:', stfRes);
         if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
       } catch { /* keep SSR values */ }
@@ -358,9 +360,10 @@ export default function BookingPage({ business, schedule, services, staff, error
     if (!business) return;
     (async () => {
       try {
-        const { data } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
+        const { data, error } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
+        console.log('[Bokify] schedule fetch:', { data, error });
         if (data) setLiveSchedule(data);
-      } catch { /* keep SSR value */ }
+      } catch (e) { console.warn('[Bokify] schedule fetch error:', e); }
     })();
   }, [business?.id]);
 
@@ -381,7 +384,9 @@ export default function BookingPage({ business, schedule, services, staff, error
           .lte('slot_start', endUtc.toISOString())
           .neq('booking_status', 'denied'),
       ]);
-      setSlots(generateSlots(liveSchedule, blockedRes.data||[], apptsRes.data||[], d));
+      const slots = generateSlots(liveSchedule, blockedRes.data||[], apptsRes.data||[], d);
+      console.log('[Bokify] generateSlots:', { schedule: liveSchedule, date: d, slots: slots.length });
+      setSlots(slots);
     } catch { setSlots([]); }
     finally { setLoadingSlots(false); }
   }, [business, liveSchedule]);
