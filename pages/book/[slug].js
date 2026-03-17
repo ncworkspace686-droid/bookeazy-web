@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabase';
 import { generateSlots, formatTime, formatDate, validatePhone, getCountryFromWhatsapp } from '../../lib/slots';
@@ -238,12 +238,31 @@ function DatePicker({ value, onChange, maxDays = 30 }) {
 }
 
 // ─── Slot Picker ──────────────────────────────────────────────────────────────
-function SlotPicker({ slots, selected, onChange, loading }) {
+function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSchedule }) {
   if (loading) return (
     <div style={{ height:52, display:'flex', alignItems:'center', justifyContent:'center', background:C.primaryXL, borderRadius:12, marginBottom:14 }}>
       <div style={{ width:18, height:18, border:`2.5px solid ${C.primarySoft}`, borderTopColor:C.primary, borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
     </div>
   );
+
+  // Schedule fetch completed but no schedule exists for this business
+  if (scheduleReady && !hasSchedule) return (
+    <div style={{ padding:'13px 16px', background:C.roseBg, borderRadius:12, border:`1px solid rgba(220,38,38,.2)`, marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
+      <Icon d={icons.alert} size={14} color={C.rose}/>
+      <span style={{ fontSize:13, color:C.rose, fontWeight:500 }}>Availability not set up yet — please contact the business directly.</span>
+    </div>
+  );
+
+  const selectableSlots = slots.filter(s => s.isSelectable);
+
+  // Slots loaded but none are selectable (all past/blocked/full)
+  if (!loading && slots.length > 0 && selectableSlots.length === 0) return (
+    <div style={{ padding:'13px 16px', background:'#FFFBEB', borderRadius:12, border:`1px solid rgba(245,158,11,.25)`, marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
+      <Icon d={icons.clock} size={14} color={C.accent}/>
+      <span style={{ fontSize:13, color:C.inkMuted, fontWeight:500 }}>All slots are full or unavailable — try another date</span>
+    </div>
+  );
+
   if (!slots.length) return (
     <div style={{ padding:'13px 16px', background:'#FFFBEB', borderRadius:12, border:`1px solid rgba(245,158,11,.25)`, marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
       <Icon d={icons.clock} size={14} color={C.accent}/>
@@ -251,7 +270,6 @@ function SlotPicker({ slots, selected, onChange, loading }) {
     </div>
   );
 
-  const selectableSlots = slots.filter(s => s.isSelectable);
   const selectedVal = selected ? selected.toISOString() : '';
 
   return (
@@ -289,7 +307,6 @@ function SlotPicker({ slots, selected, onChange, loading }) {
           </option>
         ))}
       </select>
-      {/* Custom chevron */}
       <div style={{
         position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
         pointerEvents:'none',
@@ -330,6 +347,15 @@ function Footer() {
   );
 }
 
+// ─── UUID fallback (crypto.randomUUID not available in older browsers) ────────
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 // ─── Main booking page ────────────────────────────────────────────────────────
 export default function BookingPage({ business, schedule, services, staff, error }) {
   const [firstName,    setFirstName]    = useState('');
@@ -341,19 +367,21 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [notes,        setNotes]        = useState('');
   const [date,         setDate]         = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   const [slots,        setSlots]        = useState([]);
+  const [scheduleReady, setScheduleReady] = useState(false); // true once schedule fetch completes
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting,   setSubmitting]   = useState(false);
+  const submittingRef  = useRef(false); // hard guard against double-submit
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
   // ── Client-side services fetch (fixes RLS gap on SSR) ──────────────────────
-  const [liveServices, setLiveServices] = useState(services || []);
-  const [liveStaff,    setLiveStaff]    = useState(staff    || []);
+  const [liveServices,   setLiveServices]   = useState(services || []);
+  const [liveStaff,      setLiveStaff]      = useState(staff    || []);
+  const [servicesFetched, setServicesFetched] = useState((services||[]).length > 0);
 
   useEffect(() => {
     if (!business) return;
-    // Always re-fetch on client to bypass any SSR/RLS issue
     (async () => {
       try {
         const [svcRes, stfRes] = await Promise.all([
@@ -364,21 +392,32 @@ export default function BookingPage({ business, schedule, services, staff, error
         console.log('[Bokify] staff fetch:', stfRes);
         if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
-      } catch { /* keep SSR values */ }
+      } catch (e) {
+        console.warn('[Bokify] services/staff fetch error:', e);
+      } finally {
+        setServicesFetched(true);
+      }
     })();
   }, [business?.id]);
 
-  const rawCfg = business?.form_config || {};
+  // Safely parse form_config — guard against null, non-object, or malformed values
+  const rawCfg = (business?.form_config && typeof business.form_config === 'object')
+    ? business.form_config : {};
+  const safeVal = (key, fallback) => {
+    const v = rawCfg[key];
+    if (v === 'required' || v === 'optional' || v === 'hidden') return v;
+    return fallback;
+  };
   const cfg = {
-    showService:     (rawCfg.service || 'optional') !== 'hidden',
-    serviceRequired: (rawCfg.service || 'optional') === 'required',
-    showStaff:       (rawCfg.staff   || 'optional') !== 'hidden',
-    staffRequired:   (rawCfg.staff   || 'optional') === 'required',
-    showNotes:       (rawCfg.notes   || 'optional') !== 'hidden',
-    notesRequired:   (rawCfg.notes   || 'optional') === 'required',
-    showEmail:       (rawCfg.email   || 'hidden')   !== 'hidden',
-    emailRequired:   (rawCfg.email   || 'hidden')   === 'required',
-    phoneRequired:   (rawCfg.phone   || 'required') === 'required',
+    showService:     safeVal('service', 'optional') !== 'hidden',
+    serviceRequired: safeVal('service', 'optional') === 'required',
+    showStaff:       safeVal('staff',   'optional') !== 'hidden',
+    staffRequired:   safeVal('staff',   'optional') === 'required',
+    showNotes:       safeVal('notes',   'optional') !== 'hidden',
+    notesRequired:   safeVal('notes',   'optional') === 'required',
+    showEmail:       safeVal('email',   'hidden')   !== 'hidden',
+    emailRequired:   safeVal('email',   'hidden')   === 'required',
+    phoneRequired:   safeVal('phone',   'required') === 'required',
   };
 
   const [liveSchedule, setLiveSchedule] = useState(schedule || null);
@@ -391,6 +430,7 @@ export default function BookingPage({ business, schedule, services, staff, error
         console.log('[Bokify] schedule fetch:', { data, error });
         if (data) setLiveSchedule(data);
       } catch (e) { console.warn('[Bokify] schedule fetch error:', e); }
+      finally { setScheduleReady(true); }
     })();
   }, [business?.id]);
 
@@ -418,22 +458,54 @@ export default function BookingPage({ business, schedule, services, staff, error
     finally { setLoadingSlots(false); }
   }, [business, liveSchedule]);
 
-  useEffect(() => { if (business) loadSlots(date); }, [date, business, liveSchedule]);
+  // Warn user if they try to navigate away mid-fill
+  useEffect(() => {
+    const hasData = firstName || lastName || phone || service || selectedSlot;
+    if (!hasData || submitted) return;
+    const handler = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [firstName, lastName, phone, service, selectedSlot, submitted]);
 
   const handleSubmit = async () => {
+    // Hard guard — prevents double-submit even if button flickers
+    if (submittingRef.current) return;
+
     setFormError('');
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
     if (!lastName.trim())  { setFormError('Please enter your last name.'); return; }
-    const phoneError = validatePhone(phone, business?.whatsapp);
+
+    // Strip leading zero before validation (common in India: 09876543210)
+    const phoneClean = phone.replace(/^0+/, '');
+    const phoneError = validatePhone(phoneClean, business?.whatsapp);
     if (phoneError) { setFormError(phoneError); return; }
-    if (cfg.showService && cfg.serviceRequired && !service) { setFormError('Please select a service.'); return; }
-    if (!selectedSlot)     { setFormError('Please select a time slot.'); return; }
+
+    // Service required but none available
+    if (cfg.showService && cfg.serviceRequired && !service) {
+      if (liveServices.length === 0) {
+        setFormError('This business has no active services set up yet. Please contact them directly.');
+      } else {
+        setFormError('Please select a service.');
+      }
+      return;
+    }
+
+    if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
+
+    // Check slot hasn't become past between selection and submit
+    if (selectedSlot <= new Date()) {
+      setFormError('The selected time slot has passed. Please choose another.');
+      setSelectedSlot(null);
+      return;
+    }
+
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const { error: apptErr } = await supabase.from('appointments').insert({
-        id: crypto.randomUUID(), business_id: business.id,
+        id: generateUUID(), business_id: business.id,
         customer_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-        customer_phone: phone.trim(), service_type: service||'',
+        customer_phone: phoneClean, service_type: service||'',
         notes: notes.trim(), date_time: selectedSlot.toISOString(),
         slot_start: selectedSlot.toISOString(), staff_id: staffId||null,
         status:'pending', booking_status:'pending',
@@ -441,21 +513,33 @@ export default function BookingPage({ business, schedule, services, staff, error
         created_at: new Date().toISOString(),
       });
       if (apptErr) throw apptErr;
-      const { data: existing } = await supabase.from('clients').select('id')
-        .eq('business_id', business.id).eq('phone', phone.trim()).maybeSingle();
-      if (!existing) {
-        await supabase.from('clients').insert({
-          business_id: business.id,
-          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          phone: phone.trim(), first_seen: selectedSlot.toISOString(), last_seen: selectedSlot.toISOString(),
-        });
-      } else {
-        await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
-          .eq('business_id', business.id).eq('phone', phone.trim());
+
+      // Client upsert — non-fatal, booking already succeeded
+      try {
+        const { data: existing } = await supabase.from('clients').select('id')
+          .eq('business_id', business.id).eq('phone', phoneClean).maybeSingle();
+        if (!existing) {
+          await supabase.from('clients').insert({
+            business_id: business.id,
+            name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+            phone: phoneClean, first_seen: selectedSlot.toISOString(), last_seen: selectedSlot.toISOString(),
+          });
+        } else {
+          await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
+            .eq('business_id', business.id).eq('phone', phoneClean);
+        }
+      } catch (clientErr) {
+        console.warn('[Bokify] client upsert failed (non-fatal):', clientErr);
       }
+
       setSubmitted(true);
-    } catch { setFormError('Could not submit booking. Please try again.'); }
-    finally { setSubmitting(false); }
+    } catch (err) {
+      console.error('[Bokify] submit error:', err);
+      setFormError('Could not submit booking. Please check your connection and try again.');
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
 
   // ── Error page ──────────────────────────────────────────────────────────────
@@ -660,10 +744,19 @@ export default function BookingPage({ business, schedule, services, staff, error
             {cfg.showService && (
               <div style={{ marginBottom:14 }}>
                 <Label req={cfg.serviceRequired}>Service</Label>
-                <StyledSelect icon="service" value={service} onChange={e=>setService(e.target.value)}>
-                  <option value="">{liveServices.length===0 ? 'No services available' : 'Select a service'}</option>
+                <StyledSelect icon="service" value={service} onChange={e=>setService(e.target.value)}
+                  disabled={servicesFetched && liveServices.length === 0}>
+                  <option value="">
+                    {!servicesFetched ? 'Loading services…' :
+                     liveServices.length === 0 ? 'No services available' : 'Select a service'}
+                  </option>
                   {liveServices.map(s => <option key={s} value={s}>{s}</option>)}
                 </StyledSelect>
+                {servicesFetched && liveServices.length === 0 && cfg.serviceRequired && (
+                  <p style={{ fontSize:11, color:C.rose, marginTop:5, fontWeight:600 }}>
+                    ⚠ No active services set up — please contact the business directly.
+                  </p>
+                )}
               </div>
             )}
             {cfg.showStaff && liveStaff.length > 0 && (
@@ -677,7 +770,7 @@ export default function BookingPage({ business, schedule, services, staff, error
             )}
             <DatePicker value={date} onChange={d=>setDate(d)} maxDays={liveSchedule?.advance_days||30}/>
             <Label req>Time Slot</Label>
-            <SlotPicker slots={slots} selected={selectedSlot} onChange={setSelectedSlot} loading={loadingSlots}/>
+            <SlotPicker slots={slots} selected={selectedSlot} onChange={setSelectedSlot} loading={loadingSlots} scheduleReady={scheduleReady} hasSchedule={!!liveSchedule}/>
           </Card>
 
           {/* ── Notes ── */}
@@ -731,17 +824,39 @@ export default function BookingPage({ business, schedule, services, staff, error
 export async function getServerSideProps({ params }) {
   const { slug } = params;
   try {
-    const isUuid = /^[0-9a-f-]{36}$/.test(slug);
+    // Normalise slug — lowercase, trim
+    const cleanSlug = (slug || '').toLowerCase().trim();
+    if (!cleanSlug) return { props: { business:null, error:'Invalid booking link' } };
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cleanSlug);
     let query = supabase.from('businesses').select('*');
-    query = isUuid ? query.or(`slug.eq.${slug},id.eq.${slug}`) : query.eq('slug', slug);
+    query = isUuid ? query.or(`slug.eq.${cleanSlug},id.eq.${cleanSlug}`) : query.eq('slug', cleanSlug);
     const { data: bizRows, error: bizErr } = await query.limit(1);
     if (bizErr || !bizRows?.length) return { props: { business:null, error:'Not found' } };
+
     const business = bizRows[0];
+
+    // Safely parse form_config if it came back as a string
+    if (typeof business.form_config === 'string') {
+      try { business.form_config = JSON.parse(business.form_config); }
+      catch { business.form_config = {}; }
+    }
+
     const { data: scheduleRow } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
     const { data: serviceRows } = await supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name');
     const { data: staffRows }   = await supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name');
-    return { props: { business, schedule:scheduleRow||null, services:(serviceRows||[]).map(r=>r.name), staff:staffRows||[], error:null } };
+
+    return {
+      props: {
+        business,
+        schedule: scheduleRow || null,
+        services: (serviceRows || []).map(r => r.name),
+        staff:    staffRows   || [],
+        error:    null,
+      }
+    };
   } catch(e) {
-    return { props: { business:null, error:e.message } };
+    console.error('[Bokify] getServerSideProps error:', e);
+    return { props: { business:null, error:'Something went wrong. Please try again.' } };
   }
 }
