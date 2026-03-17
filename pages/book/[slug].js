@@ -28,7 +28,6 @@ const C = {
 
 const FONT = "'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif";
 
-// ─── Global styles injected once ─────────────────────────────────────────────
 const GLOBAL_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { margin: 0; background: ${C.bg}; }
@@ -40,32 +39,24 @@ const GLOBAL_CSS = `
   input::placeholder, textarea::placeholder { color: ${C.inkFaint}; }
   select option { color: ${C.ink}; background: white; }
   select::-ms-expand { display: none; }
-
-  /* Hero grain overlay */
   .hero-grain::after {
     content: '';
     position: absolute; inset: 0; pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    background-size: 128px 128px;
-    mix-blend-mode: overlay;
-    opacity: 0.6;
+    background-size: 128px 128px; mix-blend-mode: overlay; opacity: 0.6;
   }
-
   .slot-btn { transition: all .15s; }
   .slot-btn:hover:not(:disabled) { transform: translateY(-1px); }
-
   .card-animate { animation: fadeUp .45s cubic-bezier(.16,1,.3,1) both; }
   .card-animate:nth-child(1) { animation-delay: .05s }
   .card-animate:nth-child(2) { animation-delay: .1s }
   .card-animate:nth-child(3) { animation-delay: .15s }
   .card-animate:nth-child(4) { animation-delay: .2s }
-
   .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(67,56,202,.45) !important; }
   .submit-btn:active:not(:disabled) { transform: translateY(0); }
   .submit-btn { transition: all .2s; }
 `;
 
-// ─── SVG icons ────────────────────────────────────────────────────────────────
 const Icon = ({ d, size = 16, color = 'currentColor', sx = {} }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={sx}>
@@ -93,7 +84,6 @@ const icons = {
   sparkle:  'M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M17.7 17.7l.7.7M5.6 18.4l.7-.7M17.7 6.3l.7-.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
 };
 
-// ─── Small reusable components ────────────────────────────────────────────────
 function StyledInput({ icon, ...props }) {
   const [focused, setFocused] = useState(false);
   const base = {
@@ -171,7 +161,6 @@ const Label = ({ children, req }) => (
   </label>
 );
 
-// ─── Date Picker ──────────────────────────────────────────────────────────────
 function DatePicker({ value, onChange, maxDays = 30 }) {
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
@@ -237,7 +226,6 @@ function DatePicker({ value, onChange, maxDays = 30 }) {
   );
 }
 
-// ─── Slot Picker ──────────────────────────────────────────────────────────────
 function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSchedule }) {
   if (loading) return (
     <div style={{ height:52, display:'flex', alignItems:'center', justifyContent:'center', background:C.primaryXL, borderRadius:12, marginBottom:14 }}>
@@ -245,7 +233,6 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
     </div>
   );
 
-  // Schedule fetch completed but no schedule exists for this business
   if (scheduleReady && !hasSchedule) return (
     <div style={{ padding:'13px 16px', background:C.roseBg, borderRadius:12, border:`1px solid rgba(220,38,38,.2)`, marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
       <Icon d={icons.alert} size={14} color={C.rose}/>
@@ -255,7 +242,6 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
 
   const selectableSlots = slots.filter(s => s.isSelectable);
 
-  // Slots loaded but none are selectable (all past/blocked/full)
   if (!loading && slots.length > 0 && selectableSlots.length === 0) return (
     <div style={{ padding:'13px 16px', background:'#FFFBEB', borderRadius:12, border:`1px solid rgba(245,158,11,.25)`, marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
       <Icon d={icons.clock} size={14} color={C.accent}/>
@@ -274,10 +260,7 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
 
   return (
     <div style={{ position:'relative', marginBottom:14 }}>
-      <div style={{
-        position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
-        pointerEvents:'none', zIndex:1,
-      }}>
+      <div style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', zIndex:1 }}>
         <Icon d={icons.clock} size={15} color={selected ? C.primary : C.inkMuted}/>
       </div>
       <select
@@ -287,8 +270,7 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
           if (slot) onChange(slot.start);
         }}
         style={{
-          width:'100%', height:52,
-          paddingLeft:40, paddingRight:36,
+          width:'100%', height:52, paddingLeft:40, paddingRight:36,
           border:`1.5px solid ${selected ? C.primary : C.border}`,
           borderRadius:12,
           background: selected ? C.primaryXL : C.surface,
@@ -307,10 +289,7 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
           </option>
         ))}
       </select>
-      <div style={{
-        position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
-        pointerEvents:'none',
-      }}>
+      <div style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={selected ? C.primary : C.inkMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
@@ -319,7 +298,6 @@ function SlotPicker({ slots, selected, onChange, loading, scheduleReady, hasSche
   );
 }
 
-// ─── Footer band ──────────────────────────────────────────────────────────────
 function Footer() {
   return (
     <div style={{
@@ -347,7 +325,6 @@ function Footer() {
   );
 }
 
-// ─── UUID fallback (crypto.randomUUID not available in older browsers) ────────
 function generateUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -356,7 +333,6 @@ function generateUUID() {
   });
 }
 
-// ─── Main booking page ────────────────────────────────────────────────────────
 export default function BookingPage({ business, schedule, services, staff, error }) {
   const [firstName,    setFirstName]    = useState('');
   const [lastName,     setLastName]     = useState('');
@@ -367,17 +343,16 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [notes,        setNotes]        = useState('');
   const [date,         setDate]         = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   const [slots,        setSlots]        = useState([]);
-  const [scheduleReady, setScheduleReady] = useState(false); // true once schedule fetch completes
+  const [scheduleReady, setScheduleReady] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting,   setSubmitting]   = useState(false);
-  const submittingRef  = useRef(false); // hard guard against double-submit
+  const submittingRef  = useRef(false);
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
-  // ── Client-side services fetch (fixes RLS gap on SSR) ──────────────────────
-  const [liveServices,   setLiveServices]   = useState(services || []);
-  const [liveStaff,      setLiveStaff]      = useState(staff    || []);
+  const [liveServices,    setLiveServices]    = useState(services || []);
+  const [liveStaff,       setLiveStaff]       = useState(staff    || []);
   const [servicesFetched, setServicesFetched] = useState((services||[]).length > 0);
 
   useEffect(() => {
@@ -388,8 +363,6 @@ export default function BookingPage({ business, schedule, services, staff, error
           supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name'),
           supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name'),
         ]);
-        console.log('[Bokify] services fetch:', svcRes);
-        console.log('[Bokify] staff fetch:', stfRes);
         if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
       } catch (e) {
@@ -400,7 +373,6 @@ export default function BookingPage({ business, schedule, services, staff, error
     })();
   }, [business?.id]);
 
-  // Safely parse form_config — guard against null, non-object, or malformed values
   const rawCfg = (business?.form_config && typeof business.form_config === 'object')
     ? business.form_config : {};
   const safeVal = (key, fallback) => {
@@ -426,8 +398,11 @@ export default function BookingPage({ business, schedule, services, staff, error
     if (!business) return;
     (async () => {
       try {
-        const { data, error } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
-        console.log('[Bokify] schedule fetch:', { data, error });
+        const { data } = await supabase
+          .from('business_schedules')
+          .select('*')
+          .eq('business_id', business.id)
+          .maybeSingle();
         if (data) setLiveSchedule(data);
       } catch (e) { console.warn('[Bokify] schedule fetch error:', e); }
       finally { setScheduleReady(true); }
@@ -451,14 +426,27 @@ export default function BookingPage({ business, schedule, services, staff, error
           .lte('slot_start', endUtc.toISOString())
           .neq('booking_status', 'denied'),
       ]);
-      const slots = generateSlots(liveSchedule, blockedRes.data||[], apptsRes.data||[], d);
-      console.log('[Bokify] generateSlots:', { schedule: liveSchedule, date: d, slots: slots.length });
-      setSlots(slots);
-    } catch { setSlots([]); }
+      const generatedSlots = generateSlots(
+        liveSchedule, blockedRes.data||[], apptsRes.data||[], d
+      );
+      setSlots(generatedSlots);
+    } catch (e) {
+      console.warn('[Bokify] loadSlots error:', e);
+      setSlots([]);
+    }
     finally { setLoadingSlots(false); }
   }, [business, liveSchedule]);
 
-  // Warn user if they try to navigate away mid-fill
+  // FIX: loadSlots was defined but never called — slots never appeared.
+  // Trigger on date change (user picks a new day) AND when schedule becomes
+  // ready (first load after the schedule useEffect resolves).
+  // Guard: only run after scheduleReady so we always have the latest schedule
+  // data — avoids a race where generateSlots runs with a null schedule.
+  useEffect(() => {
+    if (!scheduleReady) return;
+    loadSlots(date);
+  }, [date, scheduleReady, loadSlots]);
+
   useEffect(() => {
     const hasData = firstName || lastName || phone || service || selectedSlot;
     if (!hasData || submitted) return;
@@ -468,31 +456,26 @@ export default function BookingPage({ business, schedule, services, staff, error
   }, [firstName, lastName, phone, service, selectedSlot, submitted]);
 
   const handleSubmit = async () => {
-    // Hard guard — prevents double-submit even if button flickers
     if (submittingRef.current) return;
-
     setFormError('');
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
-    if (!lastName.trim())  { setFormError('Please enter your last name.'); return; }
+    if (!lastName.trim())  { setFormError('Please enter your last name.');  return; }
 
-    // Strip leading zero before validation (common in India: 09876543210)
     const phoneClean = phone.replace(/^0+/, '');
     const phoneError = validatePhone(phoneClean, business?.whatsapp);
     if (phoneError) { setFormError(phoneError); return; }
 
-    // Service required but none available
     if (cfg.showService && cfg.serviceRequired && !service) {
-      if (liveServices.length === 0) {
-        setFormError('This business has no active services set up yet. Please contact them directly.');
-      } else {
-        setFormError('Please select a service.');
-      }
+      setFormError(
+        liveServices.length === 0
+          ? 'This business has no active services set up yet. Please contact them directly.'
+          : 'Please select a service.'
+      );
       return;
     }
 
     if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
 
-    // Check slot hasn't become past between selection and submit
     if (selectedSlot <= new Date()) {
       setFormError('The selected time slot has passed. Please choose another.');
       setSelectedSlot(null);
@@ -503,26 +486,36 @@ export default function BookingPage({ business, schedule, services, staff, error
     setSubmitting(true);
     try {
       const { error: apptErr } = await supabase.from('appointments').insert({
-        id: generateUUID(), business_id: business.id,
-        customer_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-        customer_phone: phoneClean, service_type: service||'',
-        notes: notes.trim(), date_time: selectedSlot.toISOString(),
-        slot_start: selectedSlot.toISOString(), staff_id: staffId||null,
-        status:'pending', booking_status:'pending',
-        payment_amount:0, payment_status:'pending',
-        created_at: new Date().toISOString(),
+        id:              generateUUID(),
+        business_id:     business.id,
+        customer_name:   `${firstName.trim()} ${lastName.trim()}`.trim(),
+        customer_phone:  phoneClean,
+        service_type:    service || '',
+        notes:           notes.trim(),
+        date_time:       selectedSlot.toISOString(),
+        slot_start:      selectedSlot.toISOString(),
+        staff_id:        staffId || null,
+        // STATUS: pending — booking appears on owner's dashboard calendar
+        // immediately but marked pending until owner confirms.
+        status:          'pending',
+        booking_status:  'pending',
+        payment_amount:  0,
+        payment_status:  'pending',
+        created_at:      new Date().toISOString(),
       });
       if (apptErr) throw apptErr;
 
-      // Client upsert — non-fatal, booking already succeeded
+      // Client upsert — non-fatal
       try {
         const { data: existing } = await supabase.from('clients').select('id')
           .eq('business_id', business.id).eq('phone', phoneClean).maybeSingle();
         if (!existing) {
           await supabase.from('clients').insert({
             business_id: business.id,
-            name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-            phone: phoneClean, first_seen: selectedSlot.toISOString(), last_seen: selectedSlot.toISOString(),
+            name:        `${firstName.trim()} ${lastName.trim()}`.trim(),
+            phone:       phoneClean,
+            first_seen:  selectedSlot.toISOString(),
+            last_seen:   selectedSlot.toISOString(),
           });
         } else {
           await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
@@ -542,20 +535,28 @@ export default function BookingPage({ business, schedule, services, staff, error
     }
   };
 
-  // ── Error page ──────────────────────────────────────────────────────────────
+  // ── Error / not-found page ─────────────────────────────────────────────────
+  // Handles: deleted business, invalid slug, DB error, null business prop
   if (error || !business) return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:C.bg, fontFamily:FONT, padding:24, gap:0 }}>
-      <div style={{ fontSize:56, marginBottom:16 }}>🔍</div>
-      <h2 style={{ fontSize:22, fontWeight:800, color:C.ink, margin:'0 0 8px', letterSpacing:'-0.4px' }}>Business not found</h2>
-      <p style={{ color:C.inkMuted, fontSize:14 }}>This booking link may be invalid or expired.</p>
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:C.bg, fontFamily:FONT }}>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24, gap:0 }}>
+        <div style={{ fontSize:56, marginBottom:16 }}>🔍</div>
+        <h2 style={{ fontSize:22, fontWeight:800, color:C.ink, margin:'0 0 8px', letterSpacing:'-0.4px' }}>
+          Business not found
+        </h2>
+        <p style={{ color:C.inkMuted, fontSize:14, textAlign:'center', maxWidth:320, lineHeight:1.55 }}>
+          This booking link may be invalid or the business may no longer be on BookEazy.
+        </p>
+      </div>
       <Footer/>
     </div>
   );
 
   const bizInitials = business.business_name
-    ? business.business_name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '?';
+    ? business.business_name.split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase()
+    : '?';
 
-  // ── Success page ────────────────────────────────────────────────────────────
+  // ── Success page ───────────────────────────────────────────────────────────
   if (submitted) return (
     <>
       <Head>
@@ -576,7 +577,7 @@ export default function BookingPage({ business, schedule, services, staff, error
             <div style={{ background:C.primaryXL, borderRadius:14, padding:'16px 18px', textAlign:'left', border:`1px solid rgba(99,102,241,.18)` }}>
               <p style={{ margin:'0 0 8px', fontSize:11, fontWeight:800, color:C.primary, textTransform:'uppercase', letterSpacing:'0.6px' }}>Your Appointment</p>
               <p style={{ margin:'0 0 4px', fontSize:15, color:C.ink, fontWeight:800 }}>{firstName} {lastName}</p>
-              <p style={{ margin:'0 0 2px', fontSize:13, color:C.inkMuted }}>{formatDate(selectedSlot)} at {formatTime(selectedSlot)}</p>
+              <p style={{ margin:'0 0 2px', fontSize:13, color:C.inkMuted }}>{selectedSlot ? `${formatDate(selectedSlot)} at ${formatTime(selectedSlot)}` : ''}</p>
               {service && <p style={{ margin:'0', fontSize:13, color:C.inkMuted }}>{service}</p>}
             </div>
           </div>
@@ -586,9 +587,8 @@ export default function BookingPage({ business, schedule, services, staff, error
     </>
   );
 
-  // ── Main booking form ───────────────────────────────────────────────────────
-  const bizPhone   = business.phone || business.whatsapp || '';
-  const bizEmail   = business.email || '';
+  const bizPhone   = business.phone   || business.whatsapp || '';
+  const bizEmail   = business.email   || '';
   const bizAddress = business.address || '';
 
   return (
@@ -603,18 +603,16 @@ export default function BookingPage({ business, schedule, services, staff, error
 
       <div style={{ minHeight:'100vh', background:C.bg, fontFamily:FONT, color:C.ink, display:'flex', flexDirection:'column' }}>
 
-        {/* ─── Hero Header ─────────────────────────────────────────────────── */}
+        {/* ─── Hero Header ────────────────────────────────────────────────── */}
         <div className="hero-grain" style={{
           background: `linear-gradient(150deg, #312E81 0%, #4338CA 40%, #6366F1 75%, #818CF8 100%)`,
           padding: '48px 24px 0', position: 'relative', overflow: 'hidden',
         }}>
-          {/* Decorative blobs */}
           <div style={{ position:'absolute', top:-80, right:-60, width:280, height:280, borderRadius:'50%', background:'rgba(255,255,255,.05)', pointerEvents:'none' }}/>
           <div style={{ position:'absolute', bottom:-40, left:-30, width:200, height:200, borderRadius:'50%', background:'rgba(255,255,255,.06)', pointerEvents:'none' }}/>
           <div style={{ position:'absolute', top:20, left:'30%', width:120, height:120, borderRadius:'50%', background:'rgba(245,158,11,.1)', pointerEvents:'none' }}/>
 
           <div style={{ maxWidth:540, margin:'0 auto', position:'relative' }}>
-            {/* Business avatar */}
             <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
               <div style={{
                 width:80, height:80, borderRadius:22,
@@ -628,7 +626,6 @@ export default function BookingPage({ business, schedule, services, staff, error
               </div>
             </div>
 
-            {/* Biz name + badge */}
             <div style={{ textAlign:'center', marginBottom:20 }}>
               <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.12)', borderRadius:20, padding:'4px 12px 4px 8px', marginBottom:12, border:'1px solid rgba(255,255,255,.2)' }}>
                 <Icon d={icons.star} size={11} color="#FCD34D" sx={{ fill:'#FCD34D', stroke:'none' }}/>
@@ -644,37 +641,22 @@ export default function BookingPage({ business, schedule, services, staff, error
               )}
             </div>
 
-            {/* Contact chips */}
             {(bizPhone || bizEmail || bizAddress) && (
               <div style={{ display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center', marginBottom:24 }}>
                 {bizPhone && (
-                  <a href={`tel:${bizPhone}`} style={{
-                    display:'inline-flex', alignItems:'center', gap:6,
-                    background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)',
-                    borderRadius:20, padding:'6px 12px', textDecoration:'none',
-                    backdropFilter:'blur(8px)',
-                  }}>
+                  <a href={`tel:${bizPhone}`} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)', borderRadius:20, padding:'6px 12px', textDecoration:'none', backdropFilter:'blur(8px)' }}>
                     <Icon d={icons.phone} size={12} color="rgba(255,255,255,.9)"/>
                     <span style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,.9)' }}>{bizPhone}</span>
                   </a>
                 )}
                 {bizEmail && (
-                  <a href={`mailto:${bizEmail}`} style={{
-                    display:'inline-flex', alignItems:'center', gap:6,
-                    background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)',
-                    borderRadius:20, padding:'6px 12px', textDecoration:'none',
-                    backdropFilter:'blur(8px)',
-                  }}>
+                  <a href={`mailto:${bizEmail}`} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)', borderRadius:20, padding:'6px 12px', textDecoration:'none', backdropFilter:'blur(8px)' }}>
                     <Icon d={icons.mail} size={12} color="rgba(255,255,255,.9)"/>
                     <span style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,.9)' }}>{bizEmail}</span>
                   </a>
                 )}
                 {bizAddress && (
-                  <div style={{
-                    display:'inline-flex', alignItems:'center', gap:6,
-                    background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)',
-                    borderRadius:20, padding:'6px 12px',
-                  }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.22)', borderRadius:20, padding:'6px 12px' }}>
                     <Icon d={icons.map} size={12} color="rgba(255,255,255,.9)"/>
                     <span style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,.9)' }}>{bizAddress}</span>
                   </div>
@@ -683,21 +665,14 @@ export default function BookingPage({ business, schedule, services, staff, error
             )}
           </div>
 
-          {/* Curved bottom edge */}
           <div style={{ height:32, background:C.bg, borderRadius:'24px 24px 0 0', marginTop:4, position:'relative', zIndex:2 }}/>
         </div>
 
-        {/* ─── Form body ───────────────────────────────────────────────────── */}
+        {/* ─── Form body ──────────────────────────────────────────────────── */}
         <div style={{ flex:1, maxWidth:540, width:'100%', margin:'0 auto', padding:'4px 16px 48px' }}>
 
-          {/* Error box — only shown after submit attempt */}
           {formError && (
-            <div style={{
-              background: C.roseBg, border:`1.5px solid rgba(220,38,38,.25)`,
-              borderRadius:14, padding:'13px 16px', marginBottom:16,
-              display:'flex', alignItems:'flex-start', gap:10,
-              animation:'scaleIn .2s ease both',
-            }}>
+            <div style={{ background: C.roseBg, border:`1.5px solid rgba(220,38,38,.25)`, borderRadius:14, padding:'13px 16px', marginBottom:16, display:'flex', alignItems:'flex-start', gap:10, animation:'scaleIn .2s ease both' }}>
               <Icon d={icons.alert} size={16} color={C.rose} sx={{ flexShrink:0, marginTop:1 }}/>
               <p style={{ fontSize:13, color:C.rose, fontWeight:600, lineHeight:1.4 }}>{formError}</p>
             </div>
@@ -738,7 +713,7 @@ export default function BookingPage({ business, schedule, services, staff, error
             </div>
           </Card>
 
-          {/* ── Appointment ── */}
+          {/* ── Appointment Details ── */}
           <Card className="card-animate">
             <CardHeader icon="calendar" iconBg="#FFFBEB" iconColor={C.accent} title="Appointment Details"/>
             {cfg.showService && (
@@ -770,7 +745,14 @@ export default function BookingPage({ business, schedule, services, staff, error
             )}
             <DatePicker value={date} onChange={d=>setDate(d)} maxDays={liveSchedule?.advance_days||30}/>
             <Label req>Time Slot</Label>
-            <SlotPicker slots={slots} selected={selectedSlot} onChange={setSelectedSlot} loading={loadingSlots} scheduleReady={scheduleReady} hasSchedule={!!liveSchedule}/>
+            <SlotPicker
+              slots={slots}
+              selected={selectedSlot}
+              onChange={setSelectedSlot}
+              loading={loadingSlots}
+              scheduleReady={scheduleReady}
+              hasSchedule={!!liveSchedule}
+            />
           </Card>
 
           {/* ── Notes ── */}
@@ -813,7 +795,6 @@ export default function BookingPage({ business, schedule, services, staff, error
           </button>
         </div>
 
-        {/* ─── Footer band ─────────────────────────────────────────────────── */}
         <Footer/>
       </div>
     </>
@@ -824,27 +805,36 @@ export default function BookingPage({ business, schedule, services, staff, error
 export async function getServerSideProps({ params }) {
   const { slug } = params;
   try {
-    // Normalise slug — lowercase, trim
     const cleanSlug = (slug || '').toLowerCase().trim();
     if (!cleanSlug) return { props: { business:null, error:'Invalid booking link' } };
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(cleanSlug);
     let query = supabase.from('businesses').select('*');
-    query = isUuid ? query.or(`slug.eq.${cleanSlug},id.eq.${cleanSlug}`) : query.eq('slug', cleanSlug);
+    query = isUuid
+      ? query.or(`slug.eq.${cleanSlug},id.eq.${cleanSlug}`)
+      : query.eq('slug', cleanSlug);
     const { data: bizRows, error: bizErr } = await query.limit(1);
-    if (bizErr || !bizRows?.length) return { props: { business:null, error:'Not found' } };
+
+    if (bizErr || !bizRows?.length) {
+      return { props: { business:null, error:'Not found' } };
+    }
 
     const business = bizRows[0];
 
-    // Safely parse form_config if it came back as a string
     if (typeof business.form_config === 'string') {
       try { business.form_config = JSON.parse(business.form_config); }
       catch { business.form_config = {}; }
     }
 
-    const { data: scheduleRow } = await supabase.from('business_schedules').select('*').eq('business_id', business.id).maybeSingle();
-    const { data: serviceRows } = await supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name');
-    const { data: staffRows }   = await supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name');
+    const { data: scheduleRow } = await supabase
+      .from('business_schedules').select('*')
+      .eq('business_id', business.id).maybeSingle();
+    const { data: serviceRows } = await supabase
+      .from('services').select('name')
+      .eq('business_id', business.id).eq('active', true).order('name');
+    const { data: staffRows } = await supabase
+      .from('staff_members').select('id,name,role')
+      .eq('business_id', business.id).eq('is_active', true).order('name');
 
     return {
       props: {
