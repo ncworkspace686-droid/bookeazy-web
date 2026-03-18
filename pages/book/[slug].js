@@ -723,7 +723,7 @@ export default function BookingPage({ business, schedule, services, staff, error
                   disabled={servicesFetched && liveServices.length === 0}>
                   <option value="">
                     {!servicesFetched ? 'Loading services…' :
-                     liveServices.length === 0 ? 'No services available' : 'Select a service'}
+                     liveServices.length === 0 ? 'No services set up yet' : 'Select a service'}
                   </option>
                   {liveServices.map(s => <option key={s} value={s}>{s}</option>)}
                 </StyledSelect>
