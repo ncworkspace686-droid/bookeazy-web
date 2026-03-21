@@ -82,7 +82,128 @@ const icons = {
   star:     'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
   link:     'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   sparkle:  'M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M17.7 17.7l.7.7M5.6 18.4l.7-.7M17.7 6.3l.7-.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  globe:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
 };
+
+// ─── Country codes (mirrors Flutter's country_codes.dart) ────────────────────
+const COUNTRY_CODES = [
+  { name: 'India',                flag: '🇮🇳', dialCode: '+91',  digitCount: 10 },
+  { name: 'United States',        flag: '🇺🇸', dialCode: '+1',   digitCount: 10 },
+  { name: 'United Kingdom',       flag: '🇬🇧', dialCode: '+44',  digitCount: 10 },
+  { name: 'United Arab Emirates', flag: '🇦🇪', dialCode: '+971', digitCount: 9  },
+  { name: 'Saudi Arabia',         flag: '🇸🇦', dialCode: '+966', digitCount: 9  },
+  { name: 'Qatar',                flag: '🇶🇦', dialCode: '+974', digitCount: 8  },
+  { name: 'Kuwait',               flag: '🇰🇼', dialCode: '+965', digitCount: 8  },
+  { name: 'Bahrain',              flag: '🇧🇭', dialCode: '+973', digitCount: 8  },
+  { name: 'Oman',                 flag: '🇴🇲', dialCode: '+968', digitCount: 8  },
+  { name: 'Singapore',            flag: '🇸🇬', dialCode: '+65',  digitCount: 8  },
+  { name: 'Malaysia',             flag: '🇲🇾', dialCode: '+60',  digitCount: 10 },
+  { name: 'Australia',            flag: '🇦🇺', dialCode: '+61',  digitCount: 9  },
+  { name: 'Canada',               flag: '🇨🇦', dialCode: '+1',   digitCount: 10 },
+  { name: 'Germany',              flag: '🇩🇪', dialCode: '+49',  digitCount: 10 },
+  { name: 'France',               flag: '🇫🇷', dialCode: '+33',  digitCount: 9  },
+  { name: 'Netherlands',          flag: '🇳🇱', dialCode: '+31',  digitCount: 9  },
+  { name: 'South Africa',         flag: '🇿🇦', dialCode: '+27',  digitCount: 9  },
+  { name: 'Nigeria',              flag: '🇳🇬', dialCode: '+234', digitCount: 10 },
+  { name: 'Kenya',                flag: '🇰🇪', dialCode: '+254', digitCount: 9  },
+  { name: 'Nepal',                flag: '🇳🇵', dialCode: '+977', digitCount: 10 },
+  { name: 'Bangladesh',           flag: '🇧🇩', dialCode: '+880', digitCount: 10 },
+  { name: 'Sri Lanka',            flag: '🇱🇰', dialCode: '+94',  digitCount: 9  },
+  { name: 'Pakistan',             flag: '🇵🇰', dialCode: '+92',  digitCount: 10 },
+  { name: 'New Zealand',          flag: '🇳🇿', dialCode: '+64',  digitCount: 9  },
+  { name: 'Other',                flag: '🌐',  dialCode: '+',    digitCount: 0  },
+].sort((a, b) => b.dialCode.length - a.dialCode.length);
+
+const DEFAULT_COUNTRY = COUNTRY_CODES.find(c => c.dialCode === '+91');
+
+function inferCountryFromWhatsapp(whatsapp) {
+  if (!whatsapp) return DEFAULT_COUNTRY;
+  for (const c of COUNTRY_CODES) {
+    if (c.dialCode === '+') continue;
+    if (whatsapp.startsWith(c.dialCode)) return c;
+  }
+  return DEFAULT_COUNTRY;
+}
+
+function CountryPickerModal({ selected, onSelect, onClose }) {
+  const [search, setSearch] = useState('');
+  const filtered = COUNTRY_CODES.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.dialCode.includes(search));
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div style={{
+        background: C.surface, borderRadius: '24px 24px 0 0',
+        width: '100%', maxWidth: 540, maxHeight: '75vh',
+        display: 'flex', flexDirection: 'column',
+        animation: 'fadeUp .25s ease both',
+      }} onClick={e => e.stopPropagation()}>
+        {/* Handle */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 4px' }}>
+          <div style={{ width:40, height:4, borderRadius:2, background:C.border }}/>
+        </div>
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', padding:'8px 20px 12px', gap:12 }}>
+          <p style={{ flex:1, fontSize:16, fontWeight:700, color:C.ink, fontFamily:FONT }}>
+            Select Country Code
+          </p>
+          <button onClick={onClose} style={{
+            background:'none', border:'none', cursor:'pointer',
+            color:C.inkMuted, fontSize:20, lineHeight:1, padding:4,
+          }}>✕</button>
+        </div>
+        {/* Search */}
+        <div style={{ padding:'0 20px 12px' }}>
+          <input
+            autoFocus
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search country or code…"
+            style={{
+              width:'100%', height:42, borderRadius:10, border:`1px solid ${C.border}`,
+              padding:'0 14px', fontSize:13, fontFamily:FONT, outline:'none',
+              background:C.bg, color:C.ink, boxSizing:'border-box',
+            }}/>
+        </div>
+        <div style={{ height:1, background:C.border }}/>
+        {/* List */}
+        <div style={{ overflowY:'auto', flex:1 }}>
+          {filtered.map((c, i) => {
+            const isSel = c.dialCode === selected.dialCode && c.name === selected.name;
+            return (
+              <div key={i} onClick={() => { onSelect(c); onClose(); }} style={{
+                display:'flex', alignItems:'center', gap:12,
+                padding:'12px 20px', cursor:'pointer',
+                background: isSel ? C.primaryXL : 'transparent',
+                borderBottom: `1px solid ${C.border}`,
+              }}>
+                <span style={{ fontSize:22 }}>{c.flag}</span>
+                <span style={{
+                  flex:1, fontSize:14, fontFamily:FONT,
+                  fontWeight: isSel ? 700 : 400, color: isSel ? C.primary : C.ink,
+                }}>{c.name}</span>
+                <span style={{ fontSize:13, color:C.inkMuted, fontWeight:600, fontFamily:FONT }}>
+                  {c.dialCode}
+                </span>
+                {c.digitCount > 0 && (
+                  <span style={{ fontSize:11, color:C.inkFaint, fontFamily:FONT }}>
+                    ({c.digitCount}d)
+                  </span>
+                )}
+                {isSel && <span style={{ color:C.primary, fontSize:16 }}>✓</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StyledInput({ icon, ...props }) {
   const [focused, setFocused] = useState(false);
@@ -311,7 +432,7 @@ function Footer() {
           <Icon d={icons.sparkle} size={12} color="#fff"/>
         </div>
         <span style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,.9)', letterSpacing:'-0.1px' }}>
-          Powered by <strong style={{ color:'#fff' }}>Bokify ✦</strong>
+          Powered by <strong style={{ color:'#fff' }}>BookEazy ✦</strong>
         </span>
       </div>
       <span style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>·</span>
@@ -320,7 +441,7 @@ function Footer() {
         Privacy Policy
       </a>
       <span style={{ fontSize:11, color:'rgba(255,255,255,.45)' }}>·</span>
-      <span style={{ fontSize:11, color:'rgba(255,255,255,.55)' }}>© 2026 Bokify</span>
+      <span style={{ fontSize:11, color:'rgba(255,255,255,.55)' }}>© 2026 BookEazy</span>
     </div>
   );
 }
@@ -337,7 +458,13 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [firstName,    setFirstName]    = useState('');
   const [lastName,     setLastName]     = useState('');
   const [phone,        setPhone]        = useState('');
-  const phoneMaxLength = getCountryFromWhatsapp(business?.whatsapp)?.digitCount ?? 15;
+
+  // Country code — infer from business WhatsApp, default India
+  const [selectedCountry, setSelectedCountry] = useState(() =>
+    inferCountryFromWhatsapp(business?.whatsapp) || DEFAULT_COUNTRY);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const phoneMaxLength = selectedCountry.digitCount || 15;
+
   const [service,      setService]      = useState('');
   const [staffId,      setStaffId]      = useState('');
   const [notes,        setNotes]        = useState('');
@@ -366,7 +493,7 @@ export default function BookingPage({ business, schedule, services, staff, error
         if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
       } catch (e) {
-        console.warn('[Bokify] services/staff fetch error:', e);
+        console.warn('[BookEazy] services/staff fetch error:', e);
       } finally {
         setServicesFetched(true);
       }
@@ -392,7 +519,7 @@ export default function BookingPage({ business, schedule, services, staff, error
     phoneRequired:   safeVal('phone',   'required') === 'required',
   };
 
-    const [liveSchedule, setLiveSchedule] = useState(schedule || null);
+  const [liveSchedule, setLiveSchedule] = useState(schedule || null);
 
   useEffect(() => {
     if (!business) return;
@@ -403,12 +530,8 @@ export default function BookingPage({ business, schedule, services, staff, error
           .select('*')
           .eq('business_id', business.id)
           .maybeSingle();
-        // Update liveSchedule AND mark ready in the same state flush
-        // so loadSlots always runs with the latest schedule data
-        if (data) {
-          setLiveSchedule(data);
-        }
-      } catch (e) { console.warn('[Bokify] schedule fetch error:', e); }
+        if (data) setLiveSchedule(data);
+      } catch (e) { console.warn('[BookEazy] schedule fetch error:', e); }
       finally { setScheduleReady(true); }
     })();
   }, [business?.id]);
@@ -435,17 +558,12 @@ export default function BookingPage({ business, schedule, services, staff, error
       );
       setSlots(generatedSlots);
     } catch (e) {
-      console.warn('[Bokify] loadSlots error:', e);
+      console.warn('[BookEazy] loadSlots error:', e);
       setSlots([]);
     }
     finally { setLoadingSlots(false); }
   }, [business, liveSchedule]);
 
-  // FIX: loadSlots was defined but never called — slots never appeared.
-  // Trigger on date change (user picks a new day) AND when schedule becomes
-  // ready (first load after the schedule useEffect resolves).
-  // Guard: only run after scheduleReady so we always have the latest schedule
-  // data — avoids a race where generateSlots runs with a null schedule.
   useEffect(() => {
     if (!scheduleReady) return;
     loadSlots(date);
@@ -465,9 +583,16 @@ export default function BookingPage({ business, schedule, services, staff, error
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
     if (!lastName.trim())  { setFormError('Please enter your last name.');  return; }
 
-    const phoneClean = phone.replace(/^0+/, '');
-    const phoneError = validatePhone(phoneClean, business?.whatsapp);
-    if (phoneError) { setFormError(phoneError); return; }
+    const phoneClean = phone.replace(/\D/g, '');
+    if (!phoneClean) { setFormError('Please enter your phone number.'); return; }
+
+    // Digit count validation
+    if (selectedCountry.digitCount > 0 && phoneClean.length !== selectedCountry.digitCount) {
+      setFormError(`Enter a valid ${selectedCountry.digitCount}-digit number for ${selectedCountry.name}.`);
+      return;
+    }
+
+    const fullPhone = `${selectedCountry.dialCode}${phoneClean}`;
 
     if (cfg.showService && cfg.serviceRequired && !service) {
       setFormError(
@@ -493,14 +618,12 @@ export default function BookingPage({ business, schedule, services, staff, error
         id:              generateUUID(),
         business_id:     business.id,
         customer_name:   `${firstName.trim()} ${lastName.trim()}`.trim(),
-        customer_phone:  phoneClean,
+        customer_phone:  fullPhone,
         service_type:    service || '',
         notes:           notes.trim(),
         date_time:       selectedSlot.toISOString(),
         slot_start:      selectedSlot.toISOString(),
         staff_id:        staffId || null,
-        // STATUS: pending — booking appears on owner's dashboard calendar
-        // immediately but marked pending until owner confirms.
         status:          'pending',
         booking_status:  'pending',
         payment_amount:  0,
@@ -512,26 +635,26 @@ export default function BookingPage({ business, schedule, services, staff, error
       // Client upsert — non-fatal
       try {
         const { data: existing } = await supabase.from('clients').select('id')
-          .eq('business_id', business.id).eq('phone', phoneClean).maybeSingle();
+          .eq('business_id', business.id).eq('phone', fullPhone).maybeSingle();
         if (!existing) {
           await supabase.from('clients').insert({
             business_id: business.id,
             name:        `${firstName.trim()} ${lastName.trim()}`.trim(),
-            phone:       phoneClean,
+            phone:       fullPhone,
             first_seen:  selectedSlot.toISOString(),
             last_seen:   selectedSlot.toISOString(),
           });
         } else {
           await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
-            .eq('business_id', business.id).eq('phone', phoneClean);
+            .eq('business_id', business.id).eq('phone', fullPhone);
         }
       } catch (clientErr) {
-        console.warn('[Bokify] client upsert failed (non-fatal):', clientErr);
+        console.warn('[BookEazy] client upsert failed (non-fatal):', clientErr);
       }
 
       setSubmitted(true);
     } catch (err) {
-      console.error('[Bokify] submit error:', err);
+      console.error('[BookEazy] submit error:', err);
       setFormError('Could not submit booking. Please check your connection and try again.');
     } finally {
       submittingRef.current = false;
@@ -540,7 +663,6 @@ export default function BookingPage({ business, schedule, services, staff, error
   };
 
   // ── Error / not-found page ─────────────────────────────────────────────────
-  // Handles: deleted business, invalid slug, DB error, null business prop
   if (error || !business) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', background:C.bg, fontFamily:FONT }}>
       <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24, gap:0 }}>
@@ -695,26 +817,56 @@ export default function BookingPage({ business, schedule, services, staff, error
                 <StyledInput icon="person" placeholder="Last name" value={lastName} onChange={e=>setLastName(e.target.value)} autoComplete="family-name"/>
               </div>
             </div>
+
+            {/* Phone with country code picker */}
             <Label req={cfg.phoneRequired}>Phone Number</Label>
-            <StyledInput icon="phone"
-              placeholder={(() => {
-                const CODES = [{d:'+971',n:9},{d:'+966',n:9},{d:'+91',n:10},{d:'+44',n:10},{d:'+1',n:10}];
-                const m = business?.whatsapp ? CODES.find(x => business.whatsapp.startsWith(x.d)) : null;
-                return m ? '0'.repeat(m.n) : '9876543210';
-              })()}
-              type="tel" value={phone}
-              onChange={e => setPhone(e.target.value.replace(/\D/g,'').slice(0, phoneMaxLength))}
-              autoComplete="tel" maxLength={phoneMaxLength}/>
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4, marginBottom:2 }}>
-              <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkMuted }}>
-                {phone.length === phoneMaxLength
-                  ? '✓ Looks good'
-                  : `${phoneMaxLength - phone.length} more digit${phoneMaxLength - phone.length === 1 ? '' : 's'} needed`}
-              </span>
-              <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkFaint, fontWeight:600 }}>
-                {phone.length}/{phoneMaxLength}
-              </span>
+            <div style={{ display:'flex', gap:8, marginBottom:4 }}>
+              {/* Country code button */}
+              <button
+                onClick={() => setShowCountryPicker(true)}
+                style={{
+                  display:'flex', alignItems:'center', gap:6,
+                  height:48, padding:'0 10px', flexShrink:0,
+                  background:C.surface, border:`1.5px solid ${C.border}`,
+                  borderRadius:12, cursor:'pointer', fontFamily:FONT,
+                  whiteSpace:'nowrap',
+                }}>
+                <span style={{ fontSize:18 }}>{selectedCountry.flag}</span>
+                <span style={{ fontSize:13, fontWeight:600, color:C.ink }}>{selectedCountry.dialCode}</span>
+                <Icon d={icons.chevDown} size={13} color={C.inkFaint}/>
+              </button>
+              {/* Phone input */}
+              <div style={{ flex:1, position:'relative' }}>
+                <span style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
+                  <Icon d={icons.phone} size={15} color={C.inkFaint}/>
+                </span>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g,'').slice(0, phoneMaxLength))}
+                  placeholder={selectedCountry.digitCount > 0 ? '0'.repeat(selectedCountry.digitCount) : 'Phone number'}
+                  maxLength={phoneMaxLength}
+                  autoComplete="tel"
+                  style={{
+                    width:'100%', height:48, background:C.surface,
+                    border:`1.5px solid ${C.border}`, borderRadius:12,
+                    padding:'0 14px 0 42px', fontSize:14, fontWeight:500,
+                    color:C.ink, outline:'none', fontFamily:FONT,
+                    boxSizing:'border-box',
+                  }}/>
+              </div>
             </div>
+            {/* Digit counter */}
+            {selectedCountry.digitCount > 0 && (
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkMuted }}>
+                  {phone.length === phoneMaxLength ? '✓ Looks good' : `${phoneMaxLength - phone.length} more digit${phoneMaxLength - phone.length === 1 ? '' : 's'} needed`}
+                </span>
+                <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkFaint, fontWeight:600 }}>
+                  {phone.length}/{phoneMaxLength}
+                </span>
+              </div>
+            )}
           </Card>
 
           {/* ── Appointment Details ── */}
@@ -801,6 +953,14 @@ export default function BookingPage({ business, schedule, services, staff, error
 
         <Footer/>
       </div>
+
+      {/* ── Country picker modal ── */}
+      {showCountryPicker && (
+        <CountryPickerModal
+          selected={selectedCountry}
+          onSelect={c => { setSelectedCountry(c); setPhone(''); }}
+          onClose={() => setShowCountryPicker(false)}/>
+      )}
     </>
   );
 }
@@ -850,7 +1010,7 @@ export async function getServerSideProps({ params }) {
       }
     };
   } catch(e) {
-    console.error('[Bokify] getServerSideProps error:', e);
+    console.error('[BookEazy] getServerSideProps error:', e);
     return { props: { business:null, error:'Something went wrong. Please try again.' } };
   }
 }
