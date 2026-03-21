@@ -392,7 +392,7 @@ export default function BookingPage({ business, schedule, services, staff, error
     phoneRequired:   safeVal('phone',   'required') === 'required',
   };
 
-  const [liveSchedule, setLiveSchedule] = useState(schedule || null);
+    const [liveSchedule, setLiveSchedule] = useState(schedule || null);
 
   useEffect(() => {
     if (!business) return;
@@ -403,7 +403,11 @@ export default function BookingPage({ business, schedule, services, staff, error
           .select('*')
           .eq('business_id', business.id)
           .maybeSingle();
-        if (data) setLiveSchedule(data);
+        // Update liveSchedule AND mark ready in the same state flush
+        // so loadSlots always runs with the latest schedule data
+        if (data) {
+          setLiveSchedule(data);
+        }
       } catch (e) { console.warn('[Bokify] schedule fetch error:', e); }
       finally { setScheduleReady(true); }
     })();
