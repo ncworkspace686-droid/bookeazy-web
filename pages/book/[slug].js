@@ -615,7 +615,7 @@ export default function BookingPage({ business, schedule, services, staff, error
       return;
     }
 
-    if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
+        if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
 
     if (selectedSlot <= new Date()) {
       setFormError('The selected time slot has passed. Please choose another.');
@@ -626,6 +626,47 @@ export default function BookingPage({ business, schedule, services, staff, error
     submittingRef.current = true;
     setSubmitting(true);
     try {
+      const startUtc = new Date(date);
+      startUtc.setUTCHours(0, 0, 0, 0);
+      const endUtc = new Date(date);
+      endUtc.setUTCHours(23, 59, 59, 999);
+
+      const [blockedRes, apptsRes] = await Promise.all([
+        supabase.from('blocked_hours')
+          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+          .eq('business_id', business.id),
+          supabase.from('appointments')
+          .select('slot_start,date_time,status,booking_status')
+          .eq('business_id', business.id)
+          .gte('slot_start', startUtc.toISOString())
+          .lte('slot_start', endUtc.toISOString())
+          .neq('booking_status', 'denied')
+          .neq('status', 'cancelled'),
+
+      ]);
+
+      if (blockedRes.error) throw blockedRes.error;
+      if (apptsRes.error) throw apptsRes.error;
+
+      const latestSlots = generateSlots(
+        liveSchedule,
+        blockedRes.data || [],
+        apptsRes.data || [],
+        date
+      );
+
+      const stillAvailable = latestSlots.some(slot =>
+        slot.isSelectable &&
+        slot.start.toISOString() === selectedSlot.toISOString()
+      );
+
+      if (!stillAvailable) {
+        setSlots(latestSlots);
+        setSelectedSlot(null);
+        setFormError('That time slot is no longer available. Please choose another.');
+        return;
+      }
+
       const { error: apptErr } = await supabase.from('appointments').insert({
         id:              generateUUID(),
         business_id:     business.id,
@@ -648,6 +689,7 @@ export default function BookingPage({ business, schedule, services, staff, error
         payment_status:  'pending',
         created_at:      new Date().toISOString(),
       });
+
       if (apptErr) throw apptErr;
 
       // Client upsert — non-fatal
