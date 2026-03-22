@@ -535,14 +535,17 @@ export default function BookingPage({ business, schedule, services, staff, error
   };
 
   const [liveSchedule, setLiveSchedule] = useState(schedule || null);
-    const pauseActive = pauseUntil && pauseUntil > new Date();
+  const [pauseUntil, setPauseUntil] = useState(
+    business?.pause_bookings_until ? new Date(business.pause_bookings_until) : null
+  );
+
+  const pauseActive = !!(pauseUntil && pauseUntil > new Date());
 
   const pauseMessage = pauseUntil
     ? `Bookings are temporarily paused until ${formatDate(pauseUntil)} at ${formatTime(pauseUntil)}. Please try again later.`
     : 'Bookings are temporarily paused. Please try again later.';
 
-
-    useEffect(() => {
+  useEffect(() => {
     if (!business) return;
     (async () => {
       try {
@@ -572,6 +575,10 @@ export default function BookingPage({ business, schedule, services, staff, error
       }
     })();
   }, [business?.id]);
+
+  const loadSlots = useCallback(async (d) => {
+    if (!business) return;
+
     if (pauseActive) {
       setSlots([]);
       setSelectedSlot(null);
@@ -579,41 +586,49 @@ export default function BookingPage({ business, schedule, services, staff, error
       return;
     }
 
+    setLoadingSlots(true);
+    setSelectedSlot(null);
 
-  const loadSlots = useCallback(async (d) => {
-    if (!business) return;
-    setLoadingSlots(true); setSelectedSlot(null);
     try {
-      const startUtc = new Date(d); startUtc.setUTCHours(0,0,0,0);
-      const endUtc   = new Date(d); endUtc.setUTCHours(23,59,59,999);
+      const startUtc = new Date(d);
+      startUtc.setUTCHours(0, 0, 0, 0);
+
+      const endUtc = new Date(d);
+      endUtc.setUTCHours(23, 59, 59, 999);
+
       const [blockedRes, apptsRes] = await Promise.all([
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-          supabase.from('appointments')
+        supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
           .gte('slot_start', startUtc.toISOString())
           .lte('slot_start', endUtc.toISOString())
           .neq('booking_status', 'denied')
           .neq('status', 'cancelled'),
-
       ]);
+
       const generatedSlots = generateSlots(
-        liveSchedule, blockedRes.data||[], apptsRes.data||[], d
+        liveSchedule,
+        blockedRes.data || [],
+        apptsRes.data || [],
+        d
       );
       setSlots(generatedSlots);
     } catch (e) {
       console.warn('[BookEazy] loadSlots error:', e);
       setSlots([]);
+    } finally {
+      setLoadingSlots(false);
     }
-    finally { setLoadingSlots(false); }
   }, [business, liveSchedule, pauseActive]);
 
   useEffect(() => {
     if (!scheduleReady) return;
     loadSlots(date);
   }, [date, scheduleReady, loadSlots]);
+
 
   useEffect(() => {
     const hasData = firstName || lastName || phone || service || selectedSlot;
@@ -1102,15 +1117,16 @@ export default function BookingPage({ business, schedule, services, staff, error
           )}
 
           {/* ── Submit ── */}
-          <button className="submit-btn" onClick={handleSubmit} disabled={submitting|| pauseActive} style={{
+                    <button className="submit-btn" onClick={handleSubmit} disabled={submitting || pauseActive} style={{
             width:'100%', height:54,
-            background: submitting ? C.primaryXL : `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryMid} 100%)`,
+            background: (submitting || pauseActive) ? C.primaryXL : `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryMid} 100%)`,
             border: 'none', borderRadius:16,
-            fontSize:15, fontWeight:800, color: submitting ? C.primary : '#fff',
-            cursor: submitting ? 'not-allowed' : 'pointer', fontFamily:FONT,
+            fontSize:15, fontWeight:800, color: (submitting || pauseActive) ? C.primary : '#fff',
+            cursor: (submitting || pauseActive) ? 'not-allowed' : 'pointer', fontFamily:FONT,
             letterSpacing:'-0.2px',
-            boxShadow: submitting ? 'none' : '0 6px 24px rgba(67,56,202,.38)',
+            boxShadow: (submitting || pauseActive) ? 'none' : '0 6px 24px rgba(67,56,202,.38)',
           }}>
+
             {submitting ? (
               <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:9 }}>
                 <span style={{ width:16, height:16, border:`2px solid rgba(67,56,202,.2)`, borderTopColor:C.primary, borderRadius:'50%', animation:'spin .7s linear infinite', display:'inline-block' }}/>
