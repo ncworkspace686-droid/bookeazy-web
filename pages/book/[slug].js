@@ -1023,20 +1023,8 @@ export default function BookingPage({ business, schedule, services, staff, error
                 </span>
               </div>
             )}
-                        {cfg.showEmail && (
-              <div style={{ marginTop: 14 }}>
-                <Label req={cfg.emailRequired}>Email</Label>
-                <StyledInput
-                  icon="mail"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  autoComplete="email"
-                />
-              </div>
-            )}
-                          {cfg.showDob && (
+
+ {cfg.showDob && (
               <div style={{ marginTop: 14 }}>
                 <Label req={cfg.dobRequired}>Date of Birth</Label>
                 <StyledInput
@@ -1084,6 +1072,22 @@ export default function BookingPage({ business, schedule, services, staff, error
                 />
               </div>
             )}
+
+
+                        {cfg.showEmail && (
+              <div style={{ marginTop: 14 }}>
+                <Label req={cfg.emailRequired}>Email</Label>
+                <StyledInput
+                  icon="mail"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+            )}
+                         
 
 
   
