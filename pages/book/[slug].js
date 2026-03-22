@@ -483,11 +483,10 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
-  const [liveServices,    setLiveServices]    = useState(services || []);
-  const [liveStaff,       setLiveStaff]       = useState(staff    || []);
-  const [servicesFetched, setServicesFetched] = useState((services||[]).length > 0);
-    const [pauseUntil, setPauseUntil] = useState(
-    business?.pause_bookings_until ? new Date(business.pause_bookings_until) : null);
+   const [liveServices,    setLiveServices]    = useState(services || []);
+  const [liveStaff,       setLiveStaff]       = useState(staff || []);
+  const [servicesFetched, setServicesFetched] = useState((services || []).length > 0);
+
 
   useEffect(() => {
     if (!business) return;
