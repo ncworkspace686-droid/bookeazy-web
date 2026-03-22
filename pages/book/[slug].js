@@ -1080,36 +1080,7 @@ export default function BookingPage({ business, schedule, services, staff, error
               scheduleReady={scheduleReady}
               hasSchedule={!!liveSchedule}
             />
-                {cfg.showDob && (
-              <div style={{ marginBottom: 14 }}>
-                <Label req={cfg.dobRequired}>Date of Birth</Label>
-                <StyledInput icon="calendar" type="date" value={dob} onChange={e => setDob(e.target.value)}/>
-              </div>
-            )}
-            {cfg.showGender && (
-              <div style={{ marginBottom: 14 }}>
-                <Label req={cfg.genderRequired}>Gender</Label>
-                <StyledSelect icon="person" value={gender} onChange={e => setGender(e.target.value)}>
-                  <option value="">Select gender</option>
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Non-binary">Non-binary</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </StyledSelect>
-              </div>
-            )}
-            {cfg.showAddress && (
-              <div style={{ marginBottom: 14 }}>
-                <Label req={cfg.addressRequired}>Address</Label>
-                <StyledInput icon="map" placeholder="Your address" value={address} onChange={e => setAddress(e.target.value)}/>
-              </div>
-            )}
-            {cfg.showReferral && (
-              <div style={{ marginBottom: 0 }}>
-                <Label req={cfg.referralRequired}>How did you hear about us?</Label>
-                <StyledInput icon="star" placeholder="Instagram, friend, Google, etc." value={referral} onChange={e => setReferral(e.target.value)}/>
-              </div>
-            )}
+                
           </Card>
           
           {/* ── Notes ── */}
