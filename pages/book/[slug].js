@@ -458,6 +458,7 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [firstName,    setFirstName]    = useState('');
   const [lastName,     setLastName]     = useState('');
   const [phone,        setPhone]        = useState('');
+  
 
   // Country code — infer from business WhatsApp, default India
   const [selectedCountry, setSelectedCountry] = useState(() =>
@@ -485,6 +486,8 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [liveServices,    setLiveServices]    = useState(services || []);
   const [liveStaff,       setLiveStaff]       = useState(staff    || []);
   const [servicesFetched, setServicesFetched] = useState((services||[]).length > 0);
+    const [pauseUntil, setPauseUntil] = useState(
+    business?.pause_bookings_until ? new Date(business.pause_bookings_until) : null);
 
   useEffect(() => {
     if (!business) return;
@@ -532,21 +535,50 @@ export default function BookingPage({ business, schedule, services, staff, error
   };
 
   const [liveSchedule, setLiveSchedule] = useState(schedule || null);
+    const pauseActive = pauseUntil && pauseUntil > new Date();
 
-  useEffect(() => {
+  const pauseMessage = pauseUntil
+    ? `Bookings are temporarily paused until ${formatDate(pauseUntil)} at ${formatTime(pauseUntil)}. Please try again later.`
+    : 'Bookings are temporarily paused. Please try again later.';
+
+
+    useEffect(() => {
     if (!business) return;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('business_schedules')
-          .select('*')
-          .eq('business_id', business.id)
-          .maybeSingle();
-        if (data) setLiveSchedule(data);
-      } catch (e) { console.warn('[BookEazy] schedule fetch error:', e); }
-      finally { setScheduleReady(true); }
+        const [{ data: scheduleData }, { data: businessData }] = await Promise.all([
+          supabase
+            .from('business_schedules')
+            .select('*')
+            .eq('business_id', business.id)
+            .maybeSingle(),
+          supabase
+            .from('businesses')
+            .select('pause_bookings_until')
+            .eq('id', business.id)
+            .maybeSingle(),
+        ]);
+
+        if (scheduleData) setLiveSchedule(scheduleData);
+        setPauseUntil(
+          businessData?.pause_bookings_until
+            ? new Date(businessData.pause_bookings_until)
+            : null
+        );
+      } catch (e) {
+        console.warn('[BookEazy] schedule/pause fetch error:', e);
+      } finally {
+        setScheduleReady(true);
+      }
     })();
   }, [business?.id]);
+    if (pauseActive) {
+      setSlots([]);
+      setSelectedSlot(null);
+      setLoadingSlots(false);
+      return;
+    }
+
 
   const loadSlots = useCallback(async (d) => {
     if (!business) return;
@@ -576,7 +608,7 @@ export default function BookingPage({ business, schedule, services, staff, error
       setSlots([]);
     }
     finally { setLoadingSlots(false); }
-  }, [business, liveSchedule]);
+  }, [business, liveSchedule, pauseActive]);
 
   useEffect(() => {
     if (!scheduleReady) return;
@@ -597,11 +629,18 @@ export default function BookingPage({ business, schedule, services, staff, error
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
     if (!lastName.trim())  { setFormError('Please enter your last name.');  return; }
 
+   if (pauseActive) {
+      setFormError(pauseMessage);
+      setSelectedSlot(null);
+      return;
+    }
+
+
     const phoneClean = phone.replace(/\D/g, '');
     if (!phoneClean) { setFormError('Please enter your phone number.'); return; }
 
     // Digit count validation
-    if (selectedCountry.digitCount > 0 && phoneClean.length !== selectedCountry.digitCount) {
+    if (selectedCountry.digitCount > 0   && phoneClean.length !== selectedCountry.digitCount) {
       setFormError(`Enter a valid ${selectedCountry.digitCount}-digit number for ${selectedCountry.name}.`);
       return;
     }
@@ -633,22 +672,40 @@ export default function BookingPage({ business, schedule, services, staff, error
       const endUtc = new Date(date);
       endUtc.setUTCHours(23, 59, 59, 999);
 
-      const [blockedRes, apptsRes] = await Promise.all([
+           const [blockedRes, apptsRes, bizRes] = await Promise.all([
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-          supabase.from('appointments')
+        supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
           .gte('slot_start', startUtc.toISOString())
           .lte('slot_start', endUtc.toISOString())
           .neq('booking_status', 'denied')
           .neq('status', 'cancelled'),
-
+        supabase.from('businesses')
+          .select('pause_bookings_until')
+          .eq('id', business.id)
+          .maybeSingle(),
       ]);
 
       if (blockedRes.error) throw blockedRes.error;
       if (apptsRes.error) throw apptsRes.error;
+      if (bizRes.error) throw bizRes.error;
+
+      const latestPauseUntil = bizRes.data?.pause_bookings_until
+        ? new Date(bizRes.data.pause_bookings_until)
+        : null;
+
+      if (latestPauseUntil && latestPauseUntil > new Date()) {
+        setPauseUntil(latestPauseUntil);
+        setSelectedSlot(null);
+        setFormError(
+          `Bookings are temporarily paused until ${formatDate(latestPauseUntil)} at ${formatTime(latestPauseUntil)}. Please try again later.`
+        );
+        return;
+      }
+
 
       const latestSlots = generateSlots(
         liveSchedule,
@@ -866,6 +923,26 @@ export default function BookingPage({ business, schedule, services, staff, error
             </div>
           )}
 
+          {pauseActive && !formError && (
+            <div style={{
+              background: C.roseBg,
+              border: `1.5px solid rgba(220,38,38,.25)`,
+              borderRadius: 14,
+              padding: '13px 16px',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+            }}>
+              <Icon d={icons.alert} size={16} color={C.rose} sx={{ flexShrink: 0, marginTop: 1 }}/>
+              <p style={{ fontSize: 13, color: C.rose, fontWeight: 600, lineHeight: 1.4 }}>
+                {pauseMessage}
+              </p>
+            </div>
+          )}
+
+
+
           {/* ── Your Details ── */}
           <Card className="card-animate">
             <CardHeader icon="person" iconBg={C.primaryXL} iconColor={C.primary} title="Your Details"/>
@@ -1025,7 +1102,7 @@ export default function BookingPage({ business, schedule, services, staff, error
           )}
 
           {/* ── Submit ── */}
-          <button className="submit-btn" onClick={handleSubmit} disabled={submitting} style={{
+          <button className="submit-btn" onClick={handleSubmit} disabled={submitting|| pauseActive} style={{
             width:'100%', height:54,
             background: submitting ? C.primaryXL : `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryMid} 100%)`,
             border: 'none', borderRadius:16,
@@ -1039,7 +1116,7 @@ export default function BookingPage({ business, schedule, services, staff, error
                 <span style={{ width:16, height:16, border:`2px solid rgba(67,56,202,.2)`, borderTopColor:C.primary, borderRadius:'50%', animation:'spin .7s linear infinite', display:'inline-block' }}/>
                 Submitting…
               </span>
-            ) : 'Confirm Booking →'}
+             ) : pauseActive ? 'Bookings Temporarily Paused' : 'Confirm Booking →'}
           </button>
         </div>
 
