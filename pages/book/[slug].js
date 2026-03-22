@@ -468,6 +468,10 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [service,      setService]      = useState('');
   const [staffId,      setStaffId]      = useState('');
   const [notes,        setNotes]        = useState('');
+  const [dob,          setDob]          = useState('');
+  const [gender,       setGender]       = useState('');
+  const [address,      setAddress]      = useState('');
+  const [referral,     setReferral]     = useState('');
   const [date,         setDate]         = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   const [slots,        setSlots]        = useState([]);
   const [scheduleReady, setScheduleReady] = useState(false);
@@ -508,15 +512,23 @@ export default function BookingPage({ business, schedule, services, staff, error
     return fallback;
   };
   const cfg = {
-    showService:     safeVal('service', 'optional') !== 'hidden',
-    serviceRequired: safeVal('service', 'optional') === 'required',
-    showStaff:       safeVal('staff',   'optional') !== 'hidden',
-    staffRequired:   safeVal('staff',   'optional') === 'required',
-    showNotes:       safeVal('notes',   'optional') !== 'hidden',
-    notesRequired:   safeVal('notes',   'optional') === 'required',
-    showEmail:       safeVal('email',   'hidden')   !== 'hidden',
-    emailRequired:   safeVal('email',   'hidden')   === 'required',
-    phoneRequired:   safeVal('phone',   'required') === 'required',
+    showService:     safeVal('service',       'optional') !== 'hidden',
+    serviceRequired: safeVal('service',       'optional') === 'required',
+    showStaff:       safeVal('staff',         'optional') !== 'hidden',
+    staffRequired:   safeVal('staff',         'optional') === 'required',
+    showNotes:       safeVal('notes',         'optional') !== 'hidden',
+    notesRequired:   safeVal('notes',         'optional') === 'required',
+    showEmail:       safeVal('email',         'hidden')   !== 'hidden',
+    emailRequired:   safeVal('email',         'hidden')   === 'required',
+    phoneRequired:   safeVal('phone',         'required') === 'required',
+    showDob:         safeVal('date_of_birth', 'hidden')   !== 'hidden',
+    dobRequired:     safeVal('date_of_birth', 'hidden')   === 'required',
+    showGender:      safeVal('gender',        'hidden')   !== 'hidden',
+    genderRequired:  safeVal('gender',        'hidden')   === 'required',
+    showAddress:     safeVal('address',       'hidden')   !== 'hidden',
+    addressRequired: safeVal('address',       'hidden')   === 'required',
+    showReferral:    safeVal('referral',      'hidden')   !== 'hidden',
+    referralRequired:safeVal('referral',      'hidden')   === 'required',
   };
 
   const [liveSchedule, setLiveSchedule] = useState(schedule || null);
@@ -620,7 +632,13 @@ export default function BookingPage({ business, schedule, services, staff, error
         customer_name:   `${firstName.trim()} ${lastName.trim()}`.trim(),
         customer_phone:  fullPhone,
         service_type:    service || '',
-        notes:           notes.trim(),
+        notes:           [
+          notes.trim(),
+          dob      ? `DOB: ${dob}`           : '',
+          gender   ? `Gender: ${gender}`     : '',
+          address  ? `Address: ${address}`   : '',
+          referral ? `Referral: ${referral}` : '',
+        ].filter(Boolean).join('\n'),
         date_time:       selectedSlot.toISOString(),
         slot_start:      selectedSlot.toISOString(),
         staff_id:        staffId || null,
@@ -909,8 +927,38 @@ export default function BookingPage({ business, schedule, services, staff, error
               scheduleReady={scheduleReady}
               hasSchedule={!!liveSchedule}
             />
+                {cfg.showDob && (
+              <div style={{ marginBottom: 14 }}>
+                <Label req={cfg.dobRequired}>Date of Birth</Label>
+                <StyledInput icon="calendar" type="date" value={dob} onChange={e => setDob(e.target.value)}/>
+              </div>
+            )}
+            {cfg.showGender && (
+              <div style={{ marginBottom: 14 }}>
+                <Label req={cfg.genderRequired}>Gender</Label>
+                <StyledSelect icon="person" value={gender} onChange={e => setGender(e.target.value)}>
+                  <option value="">Select gender</option>
+                  <option value="Female">Female</option>
+                  <option value="Male">Male</option>
+                  <option value="Non-binary">Non-binary</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </StyledSelect>
+              </div>
+            )}
+            {cfg.showAddress && (
+              <div style={{ marginBottom: 14 }}>
+                <Label req={cfg.addressRequired}>Address</Label>
+                <StyledInput icon="map" placeholder="Your address" value={address} onChange={e => setAddress(e.target.value)}/>
+              </div>
+            )}
+            {cfg.showReferral && (
+              <div style={{ marginBottom: 0 }}>
+                <Label req={cfg.referralRequired}>How did you hear about us?</Label>
+                <StyledInput icon="star" placeholder="Instagram, friend, Google, etc." value={referral} onChange={e => setReferral(e.target.value)}/>
+              </div>
+            )}
           </Card>
-
+          
           {/* ── Notes ── */}
           {cfg.showNotes && (
             <Card className="card-animate">
