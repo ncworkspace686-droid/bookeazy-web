@@ -558,12 +558,14 @@ export default function BookingPage({ business, schedule, services, staff, error
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-        supabase.from('appointments')
-          .select('slot_start,date_time')
+          supabase.from('appointments')
+          .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
           .gte('slot_start', startUtc.toISOString())
           .lte('slot_start', endUtc.toISOString())
-          .neq('booking_status', 'denied'),
+          .neq('booking_status', 'denied')
+          .neq('status', 'cancelled'),
+
       ]);
       const generatedSlots = generateSlots(
         liveSchedule, blockedRes.data||[], apptsRes.data||[], d
