@@ -47,7 +47,7 @@ export default function PrivacyPage() {
     },
     {
       title: 'Contact & Grievance Officer',
-      body: `For any privacy-related queries, data requests, or opt-out requests:\n\nEmail: privacy@bookeazy.in\nGrievance Officer: Nik\nResponse within 48 hours · Data deletion actioned within 48 hours\n\nAs required under India's IT Act 2000 and DPDPA 2023, you may also raise a grievance at grievance@bookeazy.in.`
+      body: `For any privacy-related queries, data requests, or opt-out requests:\n\nEmail: teambookeazy@gmail.com\nGrievance Officer: SK Chopra \nResponse within 48 hours · Data deletion actioned within 48 hours\n\nAs required under India's IT Act 2000 and DPDPA 2023, you may also raise a grievance at grievance@bookeazy.in.`
     },
   ];
 
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         <div style={{ flex:1, maxWidth:680, margin:'0 auto', width:'100%', padding:'32px 20px 64px' }}>
           <div style={{ background:C.surface, borderRadius:20, border:`1px solid ${C.border}`, boxShadow:'0 4px 24px rgba(67,56,202,.07)', padding:'32px 32px' }}>
             <p style={{ fontSize:14, color:C.inkMuted, lineHeight:1.7, marginBottom:28, paddingBottom:24, borderBottom:`1px solid ${C.border}` }}>
-              BookEazy provides an online appointment booking platform for small businesses. This policy explains how we handle personal data collected through Bokify-powered booking pages.
+              BookEazy provides an online appointment booking platform for small businesses. This policy explains how we handle personal data collected through BookEazy-powered booking pages.
             </p>
             {sections.map((s, i) => (
               <div key={i} style={{ marginBottom: i < sections.length-1 ? 28 : 0, paddingBottom: i < sections.length-1 ? 28 : 0, borderBottom: i < sections.length-1 ? `1px solid ${C.border}` : 'none' }}>
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
           <span style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>·</span>
           <a href="/" style={{ fontSize:12, color:'rgba(255,255,255,.7)', fontWeight:600, textDecoration:'none' }}>← Back</a>
           <span style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>·</span>
-          <a href="mailto:teambookeazy@gmail.com" style={{ fontSize:12, color:'rgba(255,255,255,.7)', fontWeight:600, textDecoration:'none' }}>privacy@bokify.in</a>
+          <a href="mailto:teambookeazy@gmail.com" style={{ fontSize:12, color:'rgba(255,255,255,.7)', fontWeight:600, textDecoration:'none' }}>teambookazy@gmail.com</a>
         </div>
       </div>
     </>
