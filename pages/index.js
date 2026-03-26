@@ -17,7 +17,7 @@ export default function Home() {
           <span style={{ fontSize: 24 }}>📅</span>
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1E1B4B', margin: '0 0 8px' }}>
-          Bokify
+          BookEazy
         </h1>
         <p style={{ color: '#6B7280', fontSize: 14, margin: 0 }}>
           Online appointment booking for Indian businesses
