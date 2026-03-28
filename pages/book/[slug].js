@@ -796,8 +796,8 @@ export default function BookingPage({ business, schedule, services, staff, error
         const isDoubleBooking =
           msg.includes('duplicate key') ||
           msg.includes('unique constraint') ||
-          msg.includes('23505');
-
+          msg.includes('23505') ||
+          msg.includes('slot_full');
         if (isDoubleBooking) {
           // Slot was taken by someone else between our check and insert
           setSlots(prev => prev.map(s =>
