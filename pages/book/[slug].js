@@ -597,20 +597,25 @@ export default function BookingPage({ business, schedule, services, staff, error
       const endUtc = new Date(d);
       endUtc.setUTCHours(23, 59, 59, 999);
 
-      const [blockedRes, apptsRes] = await Promise.all([
-        supabase.from('blocked_hours')
-          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
-          .eq('business_id', business.id),
-        supabase.from('appointments')
-  .select('slot_start,date_time,status,booking_status')
-  .eq('business_id', business.id)
-  .gte('date_time', startUtc.toISOString())
-  .lte('date_time', endUtc.toISOString())
-  .neq('booking_status', 'denied')
-  .neq('booking_status', 'reschedule_requested')
-  .neq('status', 'cancelled')
-  .neq('status', 'no_show')
-      ]);
+    const dayStartIso = startUtc.toISOString();
+const dayEndIso = endUtc.toISOString();
+
+const [blockedRes, apptsRes] = await Promise.all([
+  supabase.from('blocked_hours')
+    .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+    .eq('business_id', business.id),
+  supabase.from('appointments')
+    .select('slot_start,date_time,status,booking_status')
+    .eq('business_id', business.id)
+    .or(
+      `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
+    )
+    .neq('booking_status', 'denied')
+    .neq('booking_status', 'reschedule_requested')
+    .neq('status', 'cancelled')
+    .neq('status', 'no_show')
+]);
+
 
       const generatedSlots = generateSlots(
         liveSchedule,
@@ -692,25 +697,30 @@ const fullPhone = selectedCountry.dialCode === '+'
       const endUtc = new Date(date);
       endUtc.setUTCHours(23, 59, 59, 999);
 
-           const [blockedRes, apptsRes, bizRes] = await Promise.all([
-        supabase.from('blocked_hours')
-          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
-          .eq('business_id', business.id),
-        supabase.from('appointments')
-  .select('slot_start,date_time,status,booking_status')
-  .eq('business_id', business.id)
-  .gte('date_time', startUtc.toISOString())
-  .lte('date_time', endUtc.toISOString())
-  .neq('booking_status', 'denied')
-  .neq('booking_status', 'reschedule_requested')
-  .neq('status', 'cancelled')
-  .neq('status', 'no_show'),
+           const dayStartIso = startUtc.toISOString();
+const dayEndIso = endUtc.toISOString();
 
-        supabase.from('businesses')
-          .select('pause_bookings_until')
-          .eq('id', business.id)
-          .maybeSingle(),
-      ]);
+const [blockedRes, apptsRes, bizRes] = await Promise.all([
+  supabase.from('blocked_hours')
+    .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+    .eq('business_id', business.id),
+  supabase.from('appointments')
+    .select('slot_start,date_time,status,booking_status')
+    .eq('business_id', business.id)
+    .or(
+      `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
+    )
+    .neq('booking_status', 'denied')
+    .neq('booking_status', 'reschedule_requested')
+    .neq('status', 'cancelled')
+    .neq('status', 'no_show'),
+
+  supabase.from('businesses')
+    .select('pause_bookings_until')
+    .eq('id', business.id)
+    .maybeSingle(),
+]);
+
 
       if (blockedRes.error) throw blockedRes.error;
       if (apptsRes.error) throw apptsRes.error;
