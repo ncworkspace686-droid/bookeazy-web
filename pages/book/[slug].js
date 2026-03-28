@@ -663,7 +663,9 @@ export default function BookingPage({ business, schedule, services, staff, error
       return;
     }
 
-    const fullPhone = `${selectedCountry.dialCode}${phoneClean}`;
+const fullPhone = selectedCountry.dialCode === '+'
+  ? `+ ${phoneClean}`.trim()
+  : `${selectedCountry.dialCode} ${phoneClean}`.trim();
 
     if (cfg.showService && cfg.serviceRequired && !service) {
       setFormError(
