@@ -511,13 +511,13 @@ export default function BookingPage({ business, schedule, services, staff, error
   const rawCfg = (business?.form_config && typeof business.form_config === 'object')
     ? business.form_config : {};
   const safeVal = (key, fallback) => {
-    const v = rawCfg[key];
+    const v = typeof rawCfg[key] === 'string' ? rawCfg[key].trim().toLowerCase() : null;
     if (v === 'required' || v === 'optional' || v === 'hidden') return v;
     return fallback;
   };
   const cfg = {
-    showService:     safeVal('service',       'optional') !== 'hidden',
-    serviceRequired: safeVal('service',       'optional') === 'required',
+    showService:     safeVal('service',       'required') !== 'hidden',
+    serviceRequired: safeVal('service',       'required') === 'required',
     showStaff:       safeVal('staff',         'optional') !== 'hidden',
     staffRequired:   safeVal('staff',         'optional') === 'required',
     showNotes:       safeVal('notes',         'optional') !== 'hidden',
@@ -591,14 +591,15 @@ export default function BookingPage({ business, schedule, services, staff, error
     setSelectedSlot(null);
 
     try {
-      const startUtc = new Date(d);
+      const startUtc = new Date(date);
       startUtc.setUTCHours(0, 0, 0, 0);
-
-      const endUtc = new Date(d);
+      startUtc.setUTCDate(startUtc.getUTCDate() - 1);
+      const endUtc = new Date(date);
       endUtc.setUTCHours(23, 59, 59, 999);
+      endUtc.setUTCDate(endUtc.getUTCDate() + 1);
 
-    const dayStartIso = startUtc.toISOString();
-const dayEndIso = endUtc.toISOString();
+      const dayStartIso = startUtc.toISOString();
+      const dayEndIso = endUtc.toISOString();
 
 const [blockedRes, apptsRes] = await Promise.all([
   supabase.from('blocked_hours')
@@ -692,15 +693,19 @@ const fullPhone = selectedCountry.dialCode === '+'
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const startUtc = new Date(date);
-      startUtc.setUTCHours(0, 0, 0, 0);
-      const endUtc = new Date(date);
-      endUtc.setUTCHours(23, 59, 59, 999);
+      // Widen fetch window by ±1 day to handle any timezone offset
+const startUtc = new Date(d);
+startUtc.setUTCHours(0, 0, 0, 0);
+startUtc.setUTCDate(startUtc.getUTCDate() - 1);
 
-           const dayStartIso = startUtc.toISOString();
+const endUtc = new Date(d);
+endUtc.setUTCHours(23, 59, 59, 999);
+endUtc.setUTCDate(endUtc.getUTCDate() + 1);
+
+const dayStartIso = startUtc.toISOString();
 const dayEndIso = endUtc.toISOString();
 
-const [blockedRes, apptsRes, bizRes] = await Promise.all([
+const [blockedRes, apptsRes] = await Promise.all([
   supabase.from('blocked_hours')
     .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
     .eq('business_id', business.id),
@@ -713,12 +718,7 @@ const [blockedRes, apptsRes, bizRes] = await Promise.all([
     .neq('booking_status', 'denied')
     .neq('booking_status', 'reschedule_requested')
     .neq('status', 'cancelled')
-    .neq('status', 'no_show'),
-
-  supabase.from('businesses')
-    .select('pause_bookings_until')
-    .eq('id', business.id)
-    .maybeSingle(),
+    .neq('status', 'no_show')
 ]);
 
 
@@ -783,36 +783,28 @@ const [blockedRes, apptsRes, bizRes] = await Promise.all([
   created_at:     new Date().toISOString(),
 };
 
-let apptErr = null;
-
-{
-  const { error } = await supabase.from('appointments').insert(payload);
-  apptErr = error;
-}
+const { error: apptErr } = await supabase.from('appointments').insert(payload);
 
 if (apptErr) {
   const msg = String(apptErr.message || apptErr).toLowerCase();
-  const slotConflict =
-    payload.slot_start &&
-    (msg.includes('slot_start') ||
-     msg.includes('duplicate key') ||
-     msg.includes('unique constraint') ||
-     msg.includes('23505'));
+  const isDoubleBooking =
+    msg.includes('duplicate key') ||
+    msg.includes('unique constraint') ||
+    msg.includes('23505');
 
-  if (!slotConflict) throw apptErr;
-
-  const retryPayload = {
-    ...payload,
-    slot_start: null,
-  };
-
-  const { error: retryErr } = await supabase
-    .from('appointments')
-    .insert(retryPayload);
-
-  if (retryErr) throw retryErr;
+  if (isDoubleBooking) {
+    // Slot was taken by someone else between validation and insert
+    setSlots(prev => prev.map(s =>
+      s.start.toISOString() === selectedSlot.toISOString()
+        ? { ...s, isSelectable: false, reason: 'Full' }
+        : s
+    ));
+    setSelectedSlot(null);
+    setFormError('That slot was just taken. Please choose another time.');
+    return;
+  }
+  throw apptErr;
 }
-
 
   // Client upsert — non-fatal
       try {
