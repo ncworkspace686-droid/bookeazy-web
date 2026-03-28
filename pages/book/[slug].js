@@ -85,7 +85,7 @@ const icons = {
   globe:    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
 };
 
-// ─── Country codes (mirrors Flutter's country_codes.dart) ────────────────────
+// ─── Country codes ────────────────────────────────────────────────────────────
 const COUNTRY_CODES = [
   { name: 'India',                flag: '🇮🇳', dialCode: '+91',  digitCount: 10 },
   { name: 'United States',        flag: '🇺🇸', dialCode: '+1',   digitCount: 10 },
@@ -125,6 +125,15 @@ function inferCountryFromWhatsapp(whatsapp) {
   return DEFAULT_COUNTRY;
 }
 
+// ─── Store slot times as wall-clock (no UTC offset) ───────────────────────────
+// This ensures 11am at the business is always stored and shown as 11am
+// regardless of what timezone the customer's browser is in.
+function formatLocalISO(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:00.000`;
+}
+
 function CountryPickerModal({ selected, onSelect, onClose }) {
   const [search, setSearch] = useState('');
   const filtered = COUNTRY_CODES.filter(c =>
@@ -143,11 +152,9 @@ function CountryPickerModal({ selected, onSelect, onClose }) {
         display: 'flex', flexDirection: 'column',
         animation: 'fadeUp .25s ease both',
       }} onClick={e => e.stopPropagation()}>
-        {/* Handle */}
         <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 4px' }}>
           <div style={{ width:40, height:4, borderRadius:2, background:C.border }}/>
         </div>
-        {/* Header */}
         <div style={{ display:'flex', alignItems:'center', padding:'8px 20px 12px', gap:12 }}>
           <p style={{ flex:1, fontSize:16, fontWeight:700, color:C.ink, fontFamily:FONT }}>
             Select Country Code
@@ -157,7 +164,6 @@ function CountryPickerModal({ selected, onSelect, onClose }) {
             color:C.inkMuted, fontSize:20, lineHeight:1, padding:4,
           }}>✕</button>
         </div>
-        {/* Search */}
         <div style={{ padding:'0 20px 12px' }}>
           <input
             autoFocus
@@ -171,7 +177,6 @@ function CountryPickerModal({ selected, onSelect, onClose }) {
             }}/>
         </div>
         <div style={{ height:1, background:C.border }}/>
-        {/* List */}
         <div style={{ overflowY:'auto', flex:1 }}>
           {filtered.map((c, i) => {
             const isSel = c.dialCode === selected.dialCode && c.name === selected.name;
@@ -458,11 +463,8 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [firstName,    setFirstName]    = useState('');
   const [lastName,     setLastName]     = useState('');
   const [phone,        setPhone]        = useState('');
-  const [email, setEmail] = useState('');
+  const [email,        setEmail]        = useState('');
 
-  
-
-  // Country code — infer from business WhatsApp, default India
   const [selectedCountry, setSelectedCountry] = useState(() =>
     inferCountryFromWhatsapp(business?.whatsapp) || DEFAULT_COUNTRY);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -485,10 +487,9 @@ export default function BookingPage({ business, schedule, services, staff, error
   const [submitted,    setSubmitted]    = useState(false);
   const [formError,    setFormError]    = useState('');
 
-   const [liveServices,    setLiveServices]    = useState(services || []);
+  const [liveServices,    setLiveServices]    = useState(services || []);
   const [liveStaff,       setLiveStaff]       = useState(staff || []);
   const [servicesFetched, setServicesFetched] = useState((services || []).length > 0);
-
 
   useEffect(() => {
     if (!business) return;
@@ -510,14 +511,18 @@ export default function BookingPage({ business, schedule, services, staff, error
 
   const rawCfg = (business?.form_config && typeof business.form_config === 'object')
     ? business.form_config : {};
+
+  // Trim and lowercase before comparing so whitespace/casing in DB never causes silent fallback
   const safeVal = (key, fallback) => {
     const v = typeof rawCfg[key] === 'string' ? rawCfg[key].trim().toLowerCase() : null;
     if (v === 'required' || v === 'optional' || v === 'hidden') return v;
     return fallback;
   };
+
   const cfg = {
-    showService:     safeVal('service',       'required') !== 'hidden',
-    serviceRequired: safeVal('service',       'required') === 'required',
+    // Service defaults to optional (business can change in Form Config screen)
+    showService:     safeVal('service',       'optional') !== 'hidden',
+    serviceRequired: safeVal('service',       'optional') === 'required',
     showStaff:       safeVal('staff',         'optional') !== 'hidden',
     staffRequired:   safeVal('staff',         'optional') === 'required',
     showNotes:       safeVal('notes',         'optional') !== 'hidden',
@@ -591,32 +596,33 @@ export default function BookingPage({ business, schedule, services, staff, error
     setSelectedSlot(null);
 
     try {
-      const startUtc = new Date(date);
+      // Widen fetch window by ±1 day to handle any timezone offset in stored data
+      const startUtc = new Date(d);
       startUtc.setUTCHours(0, 0, 0, 0);
       startUtc.setUTCDate(startUtc.getUTCDate() - 1);
-      const endUtc = new Date(date);
+
+      const endUtc = new Date(d);
       endUtc.setUTCHours(23, 59, 59, 999);
       endUtc.setUTCDate(endUtc.getUTCDate() + 1);
 
       const dayStartIso = startUtc.toISOString();
       const dayEndIso = endUtc.toISOString();
 
-const [blockedRes, apptsRes] = await Promise.all([
-  supabase.from('blocked_hours')
-    .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
-    .eq('business_id', business.id),
-  supabase.from('appointments')
-    .select('slot_start,date_time,status,booking_status')
-    .eq('business_id', business.id)
-    .or(
-      `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
-    )
-    .neq('booking_status', 'denied')
-    .neq('booking_status', 'reschedule_requested')
-    .neq('status', 'cancelled')
-    .neq('status', 'no_show')
-]);
-
+      const [blockedRes, apptsRes] = await Promise.all([
+        supabase.from('blocked_hours')
+          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+          .eq('business_id', business.id),
+        supabase.from('appointments')
+          .select('slot_start,date_time,status,booking_status')
+          .eq('business_id', business.id)
+          .or(
+            `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
+          )
+          .neq('booking_status', 'denied')
+          .neq('booking_status', 'reschedule_requested')
+          .neq('status', 'cancelled')
+          .neq('status', 'no_show')
+      ]);
 
       const generatedSlots = generateSlots(
         liveSchedule,
@@ -638,7 +644,6 @@ const [blockedRes, apptsRes] = await Promise.all([
     loadSlots(date);
   }, [date, scheduleReady, loadSlots]);
 
-
   useEffect(() => {
     const hasData = firstName || lastName || phone || service || selectedSlot;
     if (!hasData || submitted) return;
@@ -653,25 +658,23 @@ const [blockedRes, apptsRes] = await Promise.all([
     if (!firstName.trim()) { setFormError('Please enter your first name.'); return; }
     if (!lastName.trim())  { setFormError('Please enter your last name.');  return; }
 
-   if (pauseActive) {
+    if (pauseActive) {
       setFormError(pauseMessage);
       setSelectedSlot(null);
       return;
     }
 
-
     const phoneClean = phone.replace(/\D/g, '');
     if (!phoneClean) { setFormError('Please enter your phone number.'); return; }
 
-    // Digit count validation
-    if (selectedCountry.digitCount > 0   && phoneClean.length !== selectedCountry.digitCount) {
+    if (selectedCountry.digitCount > 0 && phoneClean.length !== selectedCountry.digitCount) {
       setFormError(`Enter a valid ${selectedCountry.digitCount}-digit number for ${selectedCountry.name}.`);
       return;
     }
 
-const fullPhone = selectedCountry.dialCode === '+'
-  ? `+ ${phoneClean}`.trim()
-  : `${selectedCountry.dialCode} ${phoneClean}`.trim();
+    const fullPhone = selectedCountry.dialCode === '+'
+      ? `+ ${phoneClean}`.trim()
+      : `${selectedCountry.dialCode} ${phoneClean}`.trim();
 
     if (cfg.showService && cfg.serviceRequired && !service) {
       setFormError(
@@ -682,7 +685,7 @@ const fullPhone = selectedCountry.dialCode === '+'
       return;
     }
 
-        if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
+    if (!selectedSlot) { setFormError('Please select a time slot.'); return; }
 
     if (selectedSlot <= new Date()) {
       setFormError('The selected time slot has passed. Please choose another.');
@@ -693,34 +696,36 @@ const fullPhone = selectedCountry.dialCode === '+'
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      // Widen fetch window by ±1 day to handle any timezone offset
-const startUtc = new Date(d);
-startUtc.setUTCHours(0, 0, 0, 0);
-startUtc.setUTCDate(startUtc.getUTCDate() - 1);
+      // Widen fetch window by ±1 day for the final availability check
+      const startUtc = new Date(date);
+      startUtc.setUTCHours(0, 0, 0, 0);
+      startUtc.setUTCDate(startUtc.getUTCDate() - 1);
+      const endUtc = new Date(date);
+      endUtc.setUTCHours(23, 59, 59, 999);
+      endUtc.setUTCDate(endUtc.getUTCDate() + 1);
 
-const endUtc = new Date(d);
-endUtc.setUTCHours(23, 59, 59, 999);
-endUtc.setUTCDate(endUtc.getUTCDate() + 1);
+      const dayStartIso = startUtc.toISOString();
+      const dayEndIso = endUtc.toISOString();
 
-const dayStartIso = startUtc.toISOString();
-const dayEndIso = endUtc.toISOString();
-
-const [blockedRes, apptsRes] = await Promise.all([
-  supabase.from('blocked_hours')
-    .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
-    .eq('business_id', business.id),
-  supabase.from('appointments')
-    .select('slot_start,date_time,status,booking_status')
-    .eq('business_id', business.id)
-    .or(
-      `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
-    )
-    .neq('booking_status', 'denied')
-    .neq('booking_status', 'reschedule_requested')
-    .neq('status', 'cancelled')
-    .neq('status', 'no_show')
-]);
-
+      const [blockedRes, apptsRes, bizRes] = await Promise.all([
+        supabase.from('blocked_hours')
+          .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
+          .eq('business_id', business.id),
+        supabase.from('appointments')
+          .select('slot_start,date_time,status,booking_status')
+          .eq('business_id', business.id)
+          .or(
+            `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
+          )
+          .neq('booking_status', 'denied')
+          .neq('booking_status', 'reschedule_requested')
+          .neq('status', 'cancelled')
+          .neq('status', 'no_show'),
+        supabase.from('businesses')
+          .select('pause_bookings_until')
+          .eq('id', business.id)
+          .maybeSingle(),
+      ]);
 
       if (blockedRes.error) throw blockedRes.error;
       if (apptsRes.error) throw apptsRes.error;
@@ -738,7 +743,6 @@ const [blockedRes, apptsRes] = await Promise.all([
         );
         return;
       }
-
 
       const latestSlots = generateSlots(
         liveSchedule,
@@ -759,54 +763,56 @@ const [blockedRes, apptsRes] = await Promise.all([
         return;
       }
 
-     const payload = {
-  id:             generateUUID(),
-  business_id:    business.id,
-  customer_name:  `${firstName.trim()} ${lastName.trim()}`.trim(),
-  customer_phone: fullPhone,
-  customer_email: email.trim(),
-  service_type:   service || '',
-  notes: [
-    notes.trim(),
-    dob      ? `DOB: ${dob}`           : '',
-    gender   ? `Gender: ${gender}`     : '',
-    address  ? `Address: ${address}`   : '',
-    referral ? `Referral: ${referral}` : '',
-  ].filter(Boolean).join('\n'),
-  date_time:      selectedSlot.toISOString(),
-  slot_start:     selectedSlot.toISOString(),
-  staff_id:       staffId || null,
-  status:         'pending',
-  booking_status: 'pending',
-  payment_amount: 0,
-  payment_status: 'pending',
-  created_at:     new Date().toISOString(),
-};
+      const payload = {
+        id:             generateUUID(),
+        business_id:    business.id,
+        customer_name:  `${firstName.trim()} ${lastName.trim()}`.trim(),
+        customer_phone: fullPhone,
+        customer_email: email.trim(),
+        service_type:   service || '',
+        notes: [
+          notes.trim(),
+          dob      ? `DOB: ${dob}`           : '',
+          gender   ? `Gender: ${gender}`     : '',
+          address  ? `Address: ${address}`   : '',
+          referral ? `Referral: ${referral}` : '',
+        ].filter(Boolean).join('\n'),
+        // Store as wall-clock ISO (no UTC offset) so 11am is always 11am
+        // regardless of what timezone the customer's browser is in.
+        date_time:      formatLocalISO(selectedSlot),
+        slot_start:     formatLocalISO(selectedSlot),
+        staff_id:       staffId || null,
+        status:         'pending',
+        booking_status: 'pending',
+        payment_amount: 0,
+        payment_status: 'pending',
+        created_at:     new Date().toISOString(),
+      };
 
-const { error: apptErr } = await supabase.from('appointments').insert(payload);
+      const { error: apptErr } = await supabase.from('appointments').insert(payload);
 
-if (apptErr) {
-  const msg = String(apptErr.message || apptErr).toLowerCase();
-  const isDoubleBooking =
-    msg.includes('duplicate key') ||
-    msg.includes('unique constraint') ||
-    msg.includes('23505');
+      if (apptErr) {
+        const msg = String(apptErr.message || apptErr).toLowerCase();
+        const isDoubleBooking =
+          msg.includes('duplicate key') ||
+          msg.includes('unique constraint') ||
+          msg.includes('23505');
 
-  if (isDoubleBooking) {
-    // Slot was taken by someone else between validation and insert
-    setSlots(prev => prev.map(s =>
-      s.start.toISOString() === selectedSlot.toISOString()
-        ? { ...s, isSelectable: false, reason: 'Full' }
-        : s
-    ));
-    setSelectedSlot(null);
-    setFormError('That slot was just taken. Please choose another time.');
-    return;
-  }
-  throw apptErr;
-}
+        if (isDoubleBooking) {
+          // Slot was taken by someone else between our check and insert
+          setSlots(prev => prev.map(s =>
+            s.start.toISOString() === selectedSlot.toISOString()
+              ? { ...s, isSelectable: false, reason: 'Full' }
+              : s
+          ));
+          setSelectedSlot(null);
+          setFormError('That slot was just taken. Please choose another time.');
+          return;
+        }
+        throw apptErr;
+      }
 
-  // Client upsert — non-fatal
+      // Client upsert — non-fatal
       try {
         const { data: existing } = await supabase.from('clients').select('id')
           .eq('business_id', business.id).eq('phone', fullPhone).maybeSingle();
@@ -815,11 +821,11 @@ if (apptErr) {
             business_id: business.id,
             name:        `${firstName.trim()} ${lastName.trim()}`.trim(),
             phone:       fullPhone,
-            first_seen:  selectedSlot.toISOString(),
-            last_seen:   selectedSlot.toISOString(),
+            first_seen:  formatLocalISO(selectedSlot),
+            last_seen:   formatLocalISO(selectedSlot),
           });
         } else {
-          await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
+          await supabase.from('clients').update({ last_seen: formatLocalISO(selectedSlot) })
             .eq('business_id', business.id).eq('phone', fullPhone);
         }
       } catch (clientErr) {
@@ -996,8 +1002,6 @@ if (apptErr) {
             </div>
           )}
 
-
-
           {/* ── Your Details ── */}
           <Card className="card-animate">
             <CardHeader icon="person" iconBg={C.primaryXL} iconColor={C.primary} title="Your Details"/>
@@ -1012,10 +1016,8 @@ if (apptErr) {
               </div>
             </div>
 
-            {/* Phone with country code picker */}
             <Label req={cfg.phoneRequired}>Phone Number</Label>
             <div style={{ display:'flex', gap:8, marginBottom:4 }}>
-              {/* Country code button */}
               <button
                 onClick={() => setShowCountryPicker(true)}
                 style={{
@@ -1029,7 +1031,6 @@ if (apptErr) {
                 <span style={{ fontSize:13, fontWeight:600, color:C.ink }}>{selectedCountry.dialCode}</span>
                 <Icon d={icons.chevDown} size={13} color={C.inkFaint}/>
               </button>
-              {/* Phone input */}
               <div style={{ flex:1, position:'relative' }}>
                 <span style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
                   <Icon d={icons.phone} size={15} color={C.inkFaint}/>
@@ -1050,7 +1051,6 @@ if (apptErr) {
                   }}/>
               </div>
             </div>
-            {/* Digit counter */}
             {selectedCountry.digitCount > 0 && (
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
                 <span style={{ fontSize:11, color: phone.length === phoneMaxLength ? C.success : C.inkMuted }}>
@@ -1062,7 +1062,7 @@ if (apptErr) {
               </div>
             )}
 
- {cfg.showDob && (
+            {cfg.showDob && (
               <div style={{ marginTop: 14 }}>
                 <Label req={cfg.dobRequired}>Date of Birth</Label>
                 <StyledInput
@@ -1111,8 +1111,7 @@ if (apptErr) {
               </div>
             )}
 
-
-                        {cfg.showEmail && (
+            {cfg.showEmail && (
               <div style={{ marginTop: 14 }}>
                 <Label req={cfg.emailRequired}>Email</Label>
                 <StyledInput
@@ -1125,10 +1124,6 @@ if (apptErr) {
                 />
               </div>
             )}
-                         
-
-
-  
           </Card>
 
           {/* ── Appointment Details ── */}
@@ -1171,9 +1166,8 @@ if (apptErr) {
               scheduleReady={scheduleReady}
               hasSchedule={!!liveSchedule}
             />
-                
           </Card>
-          
+
           {/* ── Notes ── */}
           {cfg.showNotes && (
             <Card className="card-animate">
@@ -1196,7 +1190,7 @@ if (apptErr) {
           )}
 
           {/* ── Submit ── */}
-                    <button className="submit-btn" onClick={handleSubmit} disabled={submitting || pauseActive} style={{
+          <button className="submit-btn" onClick={handleSubmit} disabled={submitting || pauseActive} style={{
             width:'100%', height:54,
             background: (submitting || pauseActive) ? C.primaryXL : `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryMid} 100%)`,
             border: 'none', borderRadius:16,
@@ -1205,13 +1199,12 @@ if (apptErr) {
             letterSpacing:'-0.2px',
             boxShadow: (submitting || pauseActive) ? 'none' : '0 6px 24px rgba(67,56,202,.38)',
           }}>
-
             {submitting ? (
               <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:9 }}>
                 <span style={{ width:16, height:16, border:`2px solid rgba(67,56,202,.2)`, borderTopColor:C.primary, borderRadius:'50%', animation:'spin .7s linear infinite', display:'inline-block' }}/>
                 Submitting…
               </span>
-             ) : pauseActive ? 'Bookings Temporarily Paused' : 'Confirm Booking →'}
+            ) : pauseActive ? 'Bookings Temporarily Paused' : 'Confirm Booking →'}
           </button>
         </div>
 
