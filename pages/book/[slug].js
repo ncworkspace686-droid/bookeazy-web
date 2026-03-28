@@ -602,12 +602,14 @@ export default function BookingPage({ business, schedule, services, staff, error
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
         supabase.from('appointments')
-          .select('slot_start,date_time,status,booking_status')
-          .eq('business_id', business.id)
-          .gte('slot_start', startUtc.toISOString())
-          .lte('slot_start', endUtc.toISOString())
-          .neq('booking_status', 'denied')
-          .neq('status', 'cancelled'),
+  .select('slot_start,date_time,status,booking_status')
+  .eq('business_id', business.id)
+  .gte('date_time', startUtc.toISOString())
+  .lte('date_time', endUtc.toISOString())
+  .neq('booking_status', 'denied')
+  .neq('booking_status', 'reschedule_requested')
+  .neq('status', 'cancelled')
+  .neq('status', 'no_show')
       ]);
 
       const generatedSlots = generateSlots(
@@ -693,12 +695,15 @@ export default function BookingPage({ business, schedule, services, staff, error
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
         supabase.from('appointments')
-          .select('slot_start,date_time,status,booking_status')
-          .eq('business_id', business.id)
-          .gte('slot_start', startUtc.toISOString())
-          .lte('slot_start', endUtc.toISOString())
-          .neq('booking_status', 'denied')
-          .neq('status', 'cancelled'),
+  .select('slot_start,date_time,status,booking_status')
+  .eq('business_id', business.id)
+  .gte('date_time', startUtc.toISOString())
+  .lte('date_time', endUtc.toISOString())
+  .neq('booking_status', 'denied')
+  .neq('booking_status', 'reschedule_requested')
+  .neq('status', 'cancelled')
+  .neq('status', 'no_show'),
+
         supabase.from('businesses')
           .select('pause_bookings_until')
           .eq('id', business.id)
