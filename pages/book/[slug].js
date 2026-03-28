@@ -747,33 +747,62 @@ export default function BookingPage({ business, schedule, services, staff, error
         return;
       }
 
-      const { error: apptErr } = await supabase.from('appointments').insert({
-        id:              generateUUID(),
-        business_id:     business.id,
-        customer_name:   `${firstName.trim()} ${lastName.trim()}`.trim(),
-        customer_phone:  fullPhone,
-                customer_email:  email.trim(),
-        service_type:    service || '',
-        notes:           [
-          notes.trim(),
-          dob      ? `DOB: ${dob}`           : '',
-          gender   ? `Gender: ${gender}`     : '',
-          address  ? `Address: ${address}`   : '',
-          referral ? `Referral: ${referral}` : '',
-        ].filter(Boolean).join('\n'),
-        date_time:       selectedSlot.toISOString(),
-        slot_start:      selectedSlot.toISOString(),
-        staff_id:        staffId || null,
-        status:          'pending',
-        booking_status:  'pending',
-        payment_amount:  0,
-        payment_status:  'pending',
-        created_at:      new Date().toISOString(),
-      });
+     const payload = {
+  id:             generateUUID(),
+  business_id:    business.id,
+  customer_name:  `${firstName.trim()} ${lastName.trim()}`.trim(),
+  customer_phone: fullPhone,
+  customer_email: email.trim(),
+  service_type:   service || '',
+  notes: [
+    notes.trim(),
+    dob      ? `DOB: ${dob}`           : '',
+    gender   ? `Gender: ${gender}`     : '',
+    address  ? `Address: ${address}`   : '',
+    referral ? `Referral: ${referral}` : '',
+  ].filter(Boolean).join('\n'),
+  date_time:      selectedSlot.toISOString(),
+  slot_start:     selectedSlot.toISOString(),
+  staff_id:       staffId || null,
+  status:         'pending',
+  booking_status: 'pending',
+  payment_amount: 0,
+  payment_status: 'pending',
+  created_at:     new Date().toISOString(),
+};
 
-      if (apptErr) throw apptErr;
+let apptErr = null;
 
-      // Client upsert — non-fatal
+{
+  const { error } = await supabase.from('appointments').insert(payload);
+  apptErr = error;
+}
+
+if (apptErr) {
+  const msg = String(apptErr.message || apptErr).toLowerCase();
+  const slotConflict =
+    payload.slot_start &&
+    (msg.includes('slot_start') ||
+     msg.includes('duplicate key') ||
+     msg.includes('unique constraint') ||
+     msg.includes('23505'));
+
+  if (!slotConflict) throw apptErr;
+
+  const retryPayload = {
+    ...payload,
+    slot_start: null,
+  };
+
+  const { error: retryErr } = await supabase
+    .from('appointments')
+    .insert(retryPayload);
+
+  if (retryErr) throw retryErr;
+}
+
+
+  // Client upsert — non-fatal
       try {
         const { data: existing } = await supabase.from('clients').select('id')
           .eq('business_id', business.id).eq('phone', fullPhone).maybeSingle();
