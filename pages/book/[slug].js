@@ -593,13 +593,13 @@ export default function BookingPage({ business, schedule, services, staff, error
 
     try {
       // Widen fetch window by ±1 day to handle any timezone offset in stored data
+      // Mirror Flutter's slotCountsForDay: use local midnight → next local midnight
+      // converted to UTC. This matches exactly how Flutter fetches appointments.
       const startUtc = new Date(d);
-      startUtc.setUTCHours(0, 0, 0, 0);
-      startUtc.setUTCDate(startUtc.getUTCDate() - 1);
+      startUtc.setHours(0, 0, 0, 0);
 
       const endUtc = new Date(d);
-      endUtc.setUTCHours(23, 59, 59, 999);
-      endUtc.setUTCDate(endUtc.getUTCDate() + 1);
+      endUtc.setHours(23, 59, 59, 999);
 
       const dayStartIso = startUtc.toISOString();
       const dayEndIso = endUtc.toISOString();
@@ -608,12 +608,11 @@ export default function BookingPage({ business, schedule, services, staff, error
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-        supabase.from('appointments')
+       supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
-          .or(
-            `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
-          )
+          .gte('date_time', dayStartIso)
+          .lte('date_time', dayEndIso)
           .neq('booking_status', 'denied')
           .neq('booking_status', 'reschedule_requested')
           .neq('status', 'cancelled')
@@ -707,16 +706,15 @@ export default function BookingPage({ business, schedule, services, staff, error
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-        supabase.from('appointments')
+       supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
-          .or(
-            `and(date_time.gte.${dayStartIso},date_time.lte.${dayEndIso}),and(slot_start.gte.${dayStartIso},slot_start.lte.${dayEndIso})`
-          )
+          .gte('date_time', dayStartIso)
+          .lte('date_time', dayEndIso)
           .neq('booking_status', 'denied')
           .neq('booking_status', 'reschedule_requested')
           .neq('status', 'cancelled')
-          .neq('status', 'no_show'),
+          .neq('status', 'no_show')
         supabase.from('businesses')
           .select('pause_bookings_until')
           .eq('id', business.id)
