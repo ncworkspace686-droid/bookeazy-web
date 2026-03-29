@@ -595,24 +595,14 @@ export default function BookingPage({ business, schedule, services, staff, error
       // Widen fetch window by ±1 day to handle any timezone offset in stored data
       // Mirror Flutter's slotCountsForDay: use local midnight → next local midnight
       // converted to UTC. This matches exactly how Flutter fetches appointments.
-      const startUtc = new Date(d);
-      startUtc.setHours(0, 0, 0, 0);
-
-      const endUtc = new Date(d);
-      endUtc.setHours(23, 59, 59, 999);
-
-      const dayStartIso = startUtc.toISOString();
-      const dayEndIso = endUtc.toISOString();
 
       const [blockedRes, apptsRes] = await Promise.all([
         supabase.from('blocked_hours')
           .select('is_recurring,block_start_time,block_end_time,block_date,block_from_time,block_to_time,label')
           .eq('business_id', business.id),
-       supabase.from('appointments')
+      supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
-          .gte('date_time', dayStartIso)
-          .lte('date_time', dayEndIso)
           .neq('booking_status', 'denied')
           .neq('booking_status', 'reschedule_requested')
           .neq('status', 'cancelled')
@@ -692,15 +682,7 @@ export default function BookingPage({ business, schedule, services, staff, error
     setSubmitting(true);
     try {
       // Widen fetch window by ±1 day for the final availability check
-      const startUtc = new Date(date);
-      startUtc.setUTCHours(0, 0, 0, 0);
-      startUtc.setUTCDate(startUtc.getUTCDate() - 1);
-      const endUtc = new Date(date);
-      endUtc.setUTCHours(23, 59, 59, 999);
-      endUtc.setUTCDate(endUtc.getUTCDate() + 1);
-
-      const dayStartIso = startUtc.toISOString();
-      const dayEndIso = endUtc.toISOString();
+      
 
       const [blockedRes, apptsRes, bizRes] = await Promise.all([
         supabase.from('blocked_hours')
@@ -709,8 +691,6 @@ export default function BookingPage({ business, schedule, services, staff, error
        supabase.from('appointments')
           .select('slot_start,date_time,status,booking_status')
           .eq('business_id', business.id)
-          .gte('date_time', dayStartIso)
-          .lte('date_time', dayEndIso)
           .neq('booking_status', 'denied')
           .neq('booking_status', 'reschedule_requested')
           .neq('status', 'cancelled')
