@@ -820,8 +820,9 @@ export default function BookingPage({ business, schedule, services, staff, error
             first_seen:  selectedSlot.toISOString(),
             last_seen:   selectedSlot.toISOString(),
           });
-        } else {
+       } else {
           await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
+            .eq('business_id', business.id).eq('phone', fullPhone);
         }
       } catch (clientErr) {
         console.warn('[BookEazy] client upsert failed (non-fatal):', clientErr);
