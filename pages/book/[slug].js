@@ -128,11 +128,7 @@ function inferCountryFromWhatsapp(whatsapp) {
 // ─── Store slot times as wall-clock (no UTC offset) ───────────────────────────
 // This ensures 11am at the business is always stored and shown as 11am
 // regardless of what timezone the customer's browser is in.
-function formatLocalISO(date) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}:00.000`;
-}
+
 
 function CountryPickerModal({ selected, onSelect, onClose }) {
   const [search, setSearch] = useState('');
@@ -779,8 +775,8 @@ export default function BookingPage({ business, schedule, services, staff, error
         ].filter(Boolean).join('\n'),
         // Store as wall-clock ISO (no UTC offset) so 11am is always 11am
         // regardless of what timezone the customer's browser is in.
-        date_time:      formatLocalISO(selectedSlot),
-        slot_start:     formatLocalISO(selectedSlot),
+        date_time:      selectedSlot.toISOString(),
+        slot_start:     selectedSlot.toISOString(),
         staff_id:       staffId || null,
         status:         'pending',
         booking_status: 'pending',
@@ -821,12 +817,11 @@ export default function BookingPage({ business, schedule, services, staff, error
             business_id: business.id,
             name:        `${firstName.trim()} ${lastName.trim()}`.trim(),
             phone:       fullPhone,
-            first_seen:  formatLocalISO(selectedSlot),
-            last_seen:   formatLocalISO(selectedSlot),
+            first_seen:  selectedSlot.toISOString(),
+            last_seen:   selectedSlot.toISOString(),
           });
         } else {
-          await supabase.from('clients').update({ last_seen: formatLocalISO(selectedSlot) })
-            .eq('business_id', business.id).eq('phone', fullPhone);
+          await supabase.from('clients').update({ last_seen: selectedSlot.toISOString() })
         }
       } catch (clientErr) {
         console.warn('[BookEazy] client upsert failed (non-fatal):', clientErr);
