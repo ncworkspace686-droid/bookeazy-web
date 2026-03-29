@@ -694,7 +694,7 @@ export default function BookingPage({ business, schedule, services, staff, error
           .neq('booking_status', 'denied')
           .neq('booking_status', 'reschedule_requested')
           .neq('status', 'cancelled')
-          .neq('status', 'no_show')
+          .neq('status', 'no_show'),
         supabase.from('businesses')
           .select('pause_bookings_until')
           .eq('id', business.id)
