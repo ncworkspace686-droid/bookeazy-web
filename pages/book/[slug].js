@@ -761,6 +761,7 @@ export default function BookingPage({ business, schedule, services, staff, error
         payment_amount: 0,
         payment_status: 'pending',
         created_at:     new Date().toISOString(),
+        source:         'online',  
       };
 
       const { error: apptErr } = await supabase.from('appointments').insert(payload);
