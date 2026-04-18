@@ -808,7 +808,7 @@ export default function BookingPage({ business, schedule, services, staff, error
 // Trigger push notification — non-fatal
 try {
   await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-new-booking`,
+  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/push-booking-notification`,
     {
       method: 'POST',
       headers: {
