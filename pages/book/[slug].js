@@ -805,7 +805,26 @@ export default function BookingPage({ business, schedule, services, staff, error
       } catch (clientErr) {
         console.warn('[BookEazy] client upsert failed (non-fatal):', clientErr);
       }
-
+// Trigger push notification — non-fatal
+try {
+  await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-new-booking`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        businessId:    business.id,
+        appointmentId: payload.id,
+      }),
+    }
+  );
+} catch (notifErr) {
+  console.warn('[BookEazy] push notification trigger failed (non-fatal):', notifErr);
+}
+      
       setSubmitted(true);
     } catch (err) {
       console.error('[BookEazy] submit error:', err);
