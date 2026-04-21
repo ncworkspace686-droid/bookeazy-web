@@ -497,10 +497,10 @@ export default function BookingPage({ business, schedule, services, staff, error
         ]);
         if (svcRes.data?.length) setLiveServices(svcRes.data.map(r => {
   if (r.show_price && r.price > 0) {
-    const priceStr = r.price % 1 === 0 ? r.price.toFixed(0) : r.price.toFixed(2);
-    return `${r.name} (₹${priceStr})`;
+    const priceStr = r.price % 1 === 0 ? Number(r.price).toFixed(0) : Number(r.price).toFixed(2);
+    return { name: r.name, price: `₹${priceStr}` };
   }
-  return r.name;
+  return { name: r.name, price: null };
 }));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
       } catch (e) {
@@ -1132,14 +1132,41 @@ try {
             {cfg.showService && (
               <div style={{ marginBottom:14 }}>
                 <Label req={cfg.serviceRequired}>Service</Label>
-                <StyledSelect icon="service" value={service} onChange={e=>setService(e.target.value)}
-                  disabled={servicesFetched && liveServices.length === 0}>
-                  <option value="">
-                    {!servicesFetched ? 'Loading services…' :
-                     liveServices.length === 0 ? 'No services set up yet' : 'Select a service'}
-                  </option>
-                  {liveServices.map(s => <option key={s} value={s}>{s}</option>)}
-                </StyledSelect>
+                <div style={{ position: 'relative' }}>
+  <span style={{ position:'absolute', left:13, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', zIndex:1 }}>
+    <Icon d={icons.service} size={15} color={service ? C.primary : C.inkFaint}/>
+  </span>
+  <select
+    value={service}
+    onChange={e => setService(e.target.value)}
+    disabled={servicesFetched && liveServices.length === 0}
+    style={{
+      width: '100%', height: 48,
+      background: C.surface,
+      border: `1.5px solid ${service ? C.borderFocus : C.border}`,
+      borderRadius: 12,
+      padding: '0 36px 0 42px',
+      fontSize: 14, fontWeight: 500,
+      color: service ? C.ink : C.inkMuted,
+      outline: 'none', appearance: 'none',
+      cursor: 'pointer', fontFamily: FONT,
+      boxShadow: service ? `0 0 0 3px rgba(99,102,241,.12)` : 'none',
+      transition: 'border-color .15s, box-shadow .15s',
+    }}>
+    <option value="">
+      {!servicesFetched ? 'Loading services…' :
+       liveServices.length === 0 ? 'No services set up yet' : 'Select a service'}
+    </option>
+    {liveServices.map((s, i) => (
+      <option key={i} value={s.name}>
+        {s.price ? `${s.name} — ${s.price}` : s.name}
+      </option>
+    ))}
+  </select>
+  <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
+    <Icon d={icons.chevDown} size={14} color={C.inkFaint}/>
+  </span>
+</div>
                 {servicesFetched && liveServices.length === 0 && cfg.serviceRequired && (
                   <p style={{ fontSize:11, color:C.rose, marginTop:5, fontWeight:600 }}>
                     ⚠ No active services set up — please contact the business directly.
@@ -1263,10 +1290,10 @@ export async function getServerSideProps({ params }) {
         schedule: scheduleRow || null,
         services: (serviceRows || []).map(r => {
   if (r.show_price && r.price > 0) {
-    const priceStr = r.price % 1 === 0 ? r.price.toFixed(0) : r.price.toFixed(2);
-    return `${r.name} (₹${r.price % 1 === 0 ? Number(r.price).toFixed(0) : Number(r.price).toFixed(2)})`;
+    const priceStr = r.price % 1 === 0 ? Number(r.price).toFixed(0) : Number(r.price).toFixed(2);
+    return { name: r.name, price: `₹${priceStr}` };
   }
-  return r.name;
+  return { name: r.name, price: null };
 }),
         staff:    staffRows   || [],
         error:    null,
