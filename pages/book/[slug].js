@@ -492,10 +492,16 @@ export default function BookingPage({ business, schedule, services, staff, error
     (async () => {
       try {
         const [svcRes, stfRes] = await Promise.all([
-          supabase.from('services').select('name').eq('business_id', business.id).eq('active', true).order('name'),
+         supabase.from('services').select('name, price, show_price').eq('business_id', business.id).eq('active', true).order('name'),
           supabase.from('staff_members').select('id,name,role').eq('business_id', business.id).eq('is_active', true).order('name'),
         ]);
-        if (svcRes.data?.length)  setLiveServices(svcRes.data.map(r => r.name));
+        if (svcRes.data?.length) setLiveServices(svcRes.data.map(r => {
+  if (r.show_price && r.price > 0) {
+    const priceStr = r.price % 1 === 0 ? r.price.toFixed(0) : r.price.toFixed(2);
+    return `${r.name} (₹${priceStr})`;
+  }
+  return r.name;
+}));
         if (stfRes.data?.length)  setLiveStaff(stfRes.data);
       } catch (e) {
         console.warn('[BookEazy] services/staff fetch error:', e);
@@ -1245,8 +1251,8 @@ export async function getServerSideProps({ params }) {
       .from('business_schedules').select('*')
       .eq('business_id', business.id).maybeSingle();
     const { data: serviceRows } = await supabase
-      .from('services').select('name')
-      .eq('business_id', business.id).eq('active', true).order('name');
+  .from('services').select('name, price, show_price')
+  .eq('business_id', business.id).eq('active', true).order('name');
     const { data: staffRows } = await supabase
       .from('staff_members').select('id,name,role')
       .eq('business_id', business.id).eq('is_active', true).order('name');
@@ -1255,7 +1261,13 @@ export async function getServerSideProps({ params }) {
       props: {
         business,
         schedule: scheduleRow || null,
-        services: (serviceRows || []).map(r => r.name),
+        services: (serviceRows || []).map(r => {
+  if (r.show_price && r.price > 0) {
+    const priceStr = r.price % 1 === 0 ? r.price.toFixed(0) : r.price.toFixed(2);
+    return `${r.name} (₹${r.price % 1 === 0 ? Number(r.price).toFixed(0) : Number(r.price).toFixed(2)})`;
+  }
+  return r.name;
+}),
         staff:    staffRows   || [],
         error:    null,
       }
