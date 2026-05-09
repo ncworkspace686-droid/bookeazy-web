@@ -231,13 +231,15 @@ export default function DeleteDataPage() {
             />
           </div>
 
-          {/* Contact */}
+         {/* Contact */}
           <div style={{ background: `linear-gradient(135deg, #EEF2FF, #F5F3FF)`, borderRadius: 16, border: `1px solid #C7D2FE`, padding: '20px 24px' }}>
             <h2 style={{ fontSize: 14, fontWeight: 800, color: C.primary, marginBottom: 8 }}>Need Help?</h2>
             <p style={{ fontSize: 13.5, color: C.inkMuted, lineHeight: 1.7 }}>
               For any data deletion or privacy request, contact us at:<br />
               <a href="mailto:teambookeazy@gmail.com" style={{ color: C.primary, fontWeight: 700 }}>teambookeazy@gmail.com</a><br />
-                     </div>
+              <span style={{ fontSize: 12.5 }}>Response within 48 hours</span>
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
