@@ -237,12 +237,7 @@ export default function DeleteDataPage() {
             <p style={{ fontSize: 13.5, color: C.inkMuted, lineHeight: 1.7 }}>
               For any data deletion or privacy request, contact us at:<br />
               <a href="mailto:teambookeazy@gmail.com" style={{ color: C.primary, fontWeight: 700 }}>teambookeazy@gmail.com</a><br />
-              <span style={{ fontSize: 12.5 }}>Grievance Officer: SK Chopra · Response within 48 hours</span>
-            </p>
-            <p style={{ fontSize: 12, color: C.inkMuted, marginTop: 10 }}>
-              BookEazy complies with India's DPDPA 2023 and the IT Act 2000. EU/UK users may also raise a complaint with their local data protection authority.
-            </p>
-          </div>
+                     </div>
         </div>
 
         {/* Footer */}
